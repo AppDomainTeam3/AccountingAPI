@@ -89,4 +89,4 @@ api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 
 if (__name__) == "__main__":
-    app.run(debug=False)
+    app.run(host='127.0.0.2', debug=False)
