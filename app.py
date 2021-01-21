@@ -50,7 +50,28 @@ class GetAllUsers(Resource):
             abort(404, message="404 user not found")
         return a
 
+class GetUserByID(Resource):
+    @marshal_with(resource_fields)
+    def get(self, user_id):
+        resultproxy = engine.execute(f"select * from Users where id = {user_id}")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                if (column == 'upload_date'):
+                    value = temp[0] + ' ' + temp[1]
+                else:
+                    value = temp[0]
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(404, message="404 user not found")
+        return a
+
 api.add_resource(GetAllUsers, "/users")
+api.add_resource(GetUserByID, "/users/<int:user_id>")
 
 if (__name__) == "__main__":
     app.run(debug=False)
