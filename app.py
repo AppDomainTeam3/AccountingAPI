@@ -31,7 +31,8 @@ resource_fields = {
     'usertype': fields.String,
     'firstname': fields.String,
     'lastname': fields.String,
-    'avatarlink': fields.String
+    'avatarlink': fields.String,
+    'hashed_password': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -98,6 +99,23 @@ class GetUserCount(Resource):
             return 0
         return a[0]['count']
 
+class GetHashedPassword(Resource):
+    @marshal_with(resource_fields)
+    def get(self, hashed_password):
+        resultproxy = engine.execute(f"select * from Users where hashed_password = '{hashed_password}'")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                value = temp[0]
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(404, message="404 password not found")
+        return a
+
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -121,6 +139,7 @@ class CreateUser(Resource):
 
 # GET
 api.add_resource(GetAllUsers, "/users")
+api.add_resource(GetHashedPassword, "/users/<string:hashed_password>")
 api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 api.add_resource(GetUserCount, "/users/count")
