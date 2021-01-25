@@ -95,15 +95,19 @@ class GetUserCount(Resource):
             d = {**d, **{"count": rowproxy[0]}}
             a.append(d)
         if not a:
-            abort(404, message="404 no users found")
-        return a
+            return 0
+        return a[0]['count']
 
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('new_user')
+        id = requests.get(f"{api_url}/users/count").json()
+        parser.add_argument('username')
+        parser.add_argument('usertype')
+        parser.add_argument('firstname')
+        parser.add_argument('lastname')
+        parser.add_argument('avatarlink')
         args = parser.parse_args()
-        id = requests.get(f"{api_url}/users/count").json()['user_count']
         username = args['username']
         usertype = args['usertype']
         firstname = args['firstname']
@@ -111,7 +115,7 @@ class CreateUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"INSERT INTO Users VALUES ({id}, {username}, {usertype}, {firstname}, {lastname}, {avatarlink});")
+        engine.execute(f"INSERT INTO Users VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');")
 
 # ENDPOINTS -----------------------------------------------------------------
 
