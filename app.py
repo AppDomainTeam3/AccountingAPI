@@ -1,8 +1,9 @@
 from flask import Flask
-from flask_restful import Api, Resource, fields, marshal_with, abort
+from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
-import os, sys
+import os, sys, requests
 
+api_url = 'https://appdomainteam3api.azurewebsites.net'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
 username = os.environ.get('sql_username')
@@ -84,9 +85,48 @@ class GetUserByUsername(Resource):
             abort(404, message="404 user not found")
         return a
 
+class GetUserCount(Resource):
+    def get(self):
+        resultproxy = engine.execute(f"select COUNT(id) from Users")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            # build up the dictionary
+            d = {**d, **{"count": rowproxy[0]}}
+            a.append(d)
+        if not a:
+            return 0
+        return a[0]['count']
+
+class CreateUser(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        id = requests.get(f"{api_url}/users/count").json()
+        parser.add_argument('username')
+        parser.add_argument('usertype')
+        parser.add_argument('firstname')
+        parser.add_argument('lastname')
+        parser.add_argument('avatarlink')
+        args = parser.parse_args()
+        username = args['username']
+        usertype = args['usertype']
+        firstname = args['firstname']
+        lastname = args['lastname']
+        avatarlink = args['avatarlink']
+        if (avatarlink == ''):
+            avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
+        engine.execute(f"INSERT INTO Users VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');")
+
+# ENDPOINTS -----------------------------------------------------------------
+
+# GET
 api.add_resource(GetAllUsers, "/users")
 api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
+api.add_resource(GetUserCount, "/users/count")
+
+# POST
+api.add_resource(CreateUser, "/users/create-user")
 
 if (__name__) == "__main__":
     app.run(host='127.0.0.2', debug=False)
