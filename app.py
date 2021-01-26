@@ -1,8 +1,10 @@
 from flask import Flask
 from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 import os, sys, requests
 
+CORS(app)
 api_url = 'https://appdomainteam3api.azurewebsites.net'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
