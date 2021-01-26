@@ -101,7 +101,7 @@ class GetUserCount(Resource):
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        id = requests.get(f"{api_url}/users/count").json()
+        id = int(requests.get(f"{api_url}/users/count").text)
         parser.add_argument('username')
         parser.add_argument('usertype')
         parser.add_argument('firstname')
@@ -115,7 +115,8 @@ class CreateUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"INSERT INTO Users VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');")
+        engine.execute(f"""INSERT INTO Users (id, username, usertype, firstname, lastname, avatarlink) 
+                        VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
 
 # ENDPOINTS -----------------------------------------------------------------
 
