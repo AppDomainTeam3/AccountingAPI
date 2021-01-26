@@ -3,7 +3,7 @@ from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 import os, sys, requests
 
-api_url = 'https://appdomainteam3api.azurewebsites.net'
+api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
 username = os.environ.get('sql_username')
