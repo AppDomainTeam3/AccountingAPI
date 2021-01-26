@@ -129,4 +129,4 @@ api.add_resource(GetUserCount, "/users/count")
 api.add_resource(CreateUser, "/users/create-user")
 
 if (__name__) == "__main__":
-    app.run(host='127.0.0.2', debug=False)
+    app.run(debug=False)
