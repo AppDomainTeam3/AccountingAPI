@@ -1,9 +1,10 @@
 from flask import Flask
 from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 import os, sys, requests
 
-api_url = 'https://appdomainteam3api.azurewebsites.net'
+api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
 username = os.environ.get('sql_username')
@@ -20,6 +21,7 @@ except Exception as ex:
     sys.exit()
 
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = server
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -101,7 +103,7 @@ class GetUserCount(Resource):
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        id = requests.get(f"{api_url}/users/count").json()
+        id = int(requests.get(f"{api_url}/users/count").text)
         parser.add_argument('username')
         parser.add_argument('usertype')
         parser.add_argument('firstname')
@@ -115,7 +117,8 @@ class CreateUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"INSERT INTO Users VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');")
+        engine.execute(f"""INSERT INTO Users (id, username, usertype, firstname, lastname, avatarlink) 
+                        VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
 
 # ENDPOINTS -----------------------------------------------------------------
 
@@ -129,4 +132,4 @@ api.add_resource(GetUserCount, "/users/count")
 api.add_resource(CreateUser, "/users/create-user")
 
 if (__name__) == "__main__":
-    app.run(host='127.0.0.2', debug=False)
+    app.run(debug=False)
