@@ -4,8 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests
 
-CORS(app)
-api_url = 'https://appdomainteam3api.azurewebsites.net'
+api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
 username = os.environ.get('sql_username')
@@ -22,6 +21,7 @@ except Exception as ex:
     sys.exit()
 
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = server
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
