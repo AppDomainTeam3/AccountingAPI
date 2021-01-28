@@ -138,6 +138,16 @@ class CreateUser(Resource):
         engine.execute(f"""INSERT INTO Users (id, username, usertype, firstname, lastname, avatarlink) 
                         VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
 
+class EditUserRole(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username')
+        parser.add_argument('usertype')
+        args = parser.parse_args()
+        username = args['username']
+        usertype = args['usertype']
+        engine.execute(f"UPDATE Users SET usertype = '{usertype}' WHERE username = '{username}';")
+
 # ENDPOINTS -----------------------------------------------------------------
 
 # GET
@@ -149,6 +159,7 @@ api.add_resource(GetUserCount, "/users/count")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
+api.add_resource(EditUserRole, "/users/edit-user-role")
 
 if (__name__) == "__main__":
     app.run(debug=False)
