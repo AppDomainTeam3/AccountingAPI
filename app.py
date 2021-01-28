@@ -138,15 +138,23 @@ class CreateUser(Resource):
         engine.execute(f"""INSERT INTO Users (id, username, usertype, firstname, lastname, avatarlink) 
                         VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
 
-class EditUserRole(Resource):
-    def post(self):
+class EditUser(Resource):
+    def post(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('username')
         parser.add_argument('usertype')
+        parser.add_argument('firstname')
+        parser.add_argument('lastname')
+        parser.add_argument('avatarlink')
         args = parser.parse_args()
         username = args['username']
         usertype = args['usertype']
-        engine.execute(f"UPDATE Users SET usertype = '{usertype}' WHERE username = '{username}';")
+        firstname = args['firstname']
+        lastname = args['lastname']
+        avatarlink = args['avatarlink']
+        if (avatarlink == ''):
+            avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
+        engine.execute(f"UPDATE Users SET username = '{username}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}' WHERE id = '{user_id}';")
         response = Response(f"Usertype updated for '{username}'\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
@@ -161,7 +169,7 @@ api.add_resource(GetUserCount, "/users/count")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
-api.add_resource(EditUserRole, "/users/edit-user-role")
+api.add_resource(EditUser, "/users/<int:user_id>/edit")
 
 if (__name__) == "__main__":
     app.run(debug=False)
