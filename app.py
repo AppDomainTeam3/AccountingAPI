@@ -1,8 +1,8 @@
-from flask import Flask
+from flask import Flask, Response
 from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-import os, sys, requests
+import os, sys, requests, json
 
 api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
@@ -138,6 +138,18 @@ class CreateUser(Resource):
         engine.execute(f"""INSERT INTO Users (id, username, usertype, firstname, lastname, avatarlink) 
                         VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
 
+class EditUserRole(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username')
+        parser.add_argument('usertype')
+        args = parser.parse_args()
+        username = args['username']
+        usertype = args['usertype']
+        engine.execute(f"UPDATE Users SET usertype = '{usertype}' WHERE username = '{username}';")
+        response = Response(f"Usertype updated for '{username}'\n" + json.dumps(args), status=200, mimetype='application/json')
+        return response
+
 # ENDPOINTS -----------------------------------------------------------------
 
 # GET
@@ -149,6 +161,7 @@ api.add_resource(GetUserCount, "/users/count")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
+api.add_resource(EditUserRole, "/users/edit-user-role")
 
 if (__name__) == "__main__":
     app.run(debug=False)
