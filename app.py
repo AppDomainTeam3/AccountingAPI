@@ -30,6 +30,7 @@ db = SQLAlchemy(app)
 resource_fields = {
     'id': fields.Integer,
     'username': fields.String,
+    'email': fields.String,
     'usertype': fields.String,
     'firstname': fields.String,
     'lastname': fields.String,
@@ -123,38 +124,42 @@ class CreateUser(Resource):
         parser = reqparse.RequestParser()
         id = int(requests.get(f"{api_url}/users/count").text)
         parser.add_argument('username')
+        parser.add_argument('email')
         parser.add_argument('usertype')
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
         args = parser.parse_args()
         username = args['username']
+        email = args['email']
         usertype = args['usertype']
         firstname = args['firstname']
         lastname = args['lastname']
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"""INSERT INTO Users (id, username, usertype, firstname, lastname, avatarlink) 
-                        VALUES ({id}, '{username}', '{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
+        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
 
 class EditUser(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('username')
+        parser.add_argument('email')
         parser.add_argument('usertype')
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
         args = parser.parse_args()
         username = args['username']
+        email = args['email']
         usertype = args['usertype']
         firstname = args['firstname']
         lastname = args['lastname']
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"UPDATE Users SET username = '{username}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}' WHERE id = '{user_id}';")
+        engine.execute(f"UPDATE Users SET username = '{username}', email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}' WHERE id = '{user_id}';")
         response = Response(f"Usertype updated for '{username}'\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
