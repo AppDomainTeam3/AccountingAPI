@@ -35,7 +35,8 @@ resource_fields = {
     'firstname': fields.String,
     'lastname': fields.String,
     'avatarlink': fields.String,
-    'hashed_password': fields.String
+    'hashed_password': fields.String,
+    'isActive': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -138,8 +139,8 @@ class CreateUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}');""")
+        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, isActive) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1);""")
 
 class EditUser(Resource):
     def post(self, user_id):
