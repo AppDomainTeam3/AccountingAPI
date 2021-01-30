@@ -36,8 +36,8 @@ resource_fields = {
     'lastname': fields.String,
     'avatarlink': fields.String,
     'hashed_password': fields.String,
-    'isActive': fields.Boolean,
-    'ispasswordexpired': fields.Boolean
+    'isActive': fields.String,
+    'ispasswordexpired': fields.String
 }
 
 class GetAllUsers(Resource):
