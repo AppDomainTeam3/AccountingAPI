@@ -3,6 +3,7 @@ from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests, json
+from datetime import datetime
 
 api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
@@ -36,8 +37,9 @@ resource_fields = {
     'lastname': fields.String,
     'avatarlink': fields.String,
     'hashed_password': fields.String,
-    'isActive': fields.String,
-    'ispasswordexpired': fields.String
+    'is_active': fields.String,
+    'is_password_expired': fields.String,
+    'reactivate_user_date': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -140,12 +142,13 @@ class CreateUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, isActive, ispasswordexpired) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0);""")
+        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, is_password_expired, reactivate_user_date) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01');""")
 
 class EditUser(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
+        parser.add_argument('deactivate')
         parser.add_argument('username')
         parser.add_argument('email')
         parser.add_argument('usertype')
@@ -153,6 +156,13 @@ class EditUser(Resource):
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
         args = parser.parse_args()
+        reactivateUserDate = args['deactivate']
+        if reactivateUserDate == '':
+            reactivateUserDate = '1900-01-01'
+        active = False
+        if (datetime.strptime(reactivateUserDate, '%Y-%m-%d') < datetime.now()):
+            active = True
+        print(active)
         username = args['username']
         email = args['email']
         usertype = args['usertype']
@@ -161,7 +171,7 @@ class EditUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"UPDATE Users SET username = '{username}', email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}' WHERE id = '{user_id}';")
+        engine.execute(f"UPDATE Users SET username = '{username}', email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';")
         response = Response(f"Usertype updated for '{username}'\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
