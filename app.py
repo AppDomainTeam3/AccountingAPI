@@ -170,8 +170,8 @@ class EditUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"UPDATE Users SET username = '{username}', email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';")
-        response = Response(f"Usertype updated for '{username}'\n" + json.dumps(args), status=200, mimetype='application/json')
+        engine.execute(f"UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';")
+        response = Response(f"'{username}' updated\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
 # ENDPOINTS -----------------------------------------------------------------
