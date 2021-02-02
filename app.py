@@ -127,18 +127,20 @@ class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         id = int(requests.get(f"{api_url}/users/count").text)
-        parser.add_argument('username')
         parser.add_argument('email')
         parser.add_argument('usertype')
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
         args = parser.parse_args()
-        username = args['username']
         email = args['email']
         usertype = args['usertype']
         firstname = args['firstname']
         lastname = args['lastname']
+        time = datetime.now()
+        year = time.strftime("%Y")[2:4]
+        month = time.strftime("%m")
+        username = firstname[0].lower() + lastname.lower() + month + year
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
@@ -149,7 +151,6 @@ class EditUser(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('deactivate')
-        parser.add_argument('username')
         parser.add_argument('email')
         parser.add_argument('usertype')
         parser.add_argument('firstname')
@@ -162,8 +163,6 @@ class EditUser(Resource):
         active = False
         if (datetime.strptime(reactivateUserDate, '%Y-%m-%d') < datetime.now()):
             active = True
-        print(active)
-        username = args['username']
         email = args['email']
         usertype = args['usertype']
         firstname = args['firstname']
