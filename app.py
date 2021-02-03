@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests, json
 from datetime import datetime
+from werkzeug.security import generate_password_hash
 
 api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
@@ -155,11 +156,14 @@ class NewAccount(Resource):
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
+        parser.add_argument('password')
         args = parser.parse_args()
         email = args['email']
         usertype = 'regular_user'
         firstname = args['firstname']
         lastname = args['lastname']
+        password = args['password']
+        hashed_password = generate_password_hash(password)
         time = datetime.now()
         year = time.strftime("%Y")[2:4]
         month = time.strftime("%m")
@@ -167,8 +171,9 @@ class NewAccount(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, is_password_expired, reactivate_user_date) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01');""")
+        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
+                                              is_password_expired, reactivate_user_date, hashed_password) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');""")
 
 class EditUser(Resource):
     def post(self, user_id):
