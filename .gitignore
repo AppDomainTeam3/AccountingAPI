@@ -8,3 +8,5 @@ myprojectAPI/
 .vscode/
 
 apienv/
+
+__pycache__/

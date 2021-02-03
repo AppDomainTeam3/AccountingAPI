@@ -6,3 +6,4 @@ requests==2.24.0
 gunicorn==20.0.4
 Flask-Cors==3.0.10
 pyodbc==4.0.30
+Flask-Mail==0.9.1
