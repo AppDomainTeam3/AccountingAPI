@@ -5,6 +5,8 @@ from flask_cors import CORS
 import os, sys, requests, json
 from datetime import datetime
 from werkzeug.security import generate_password_hash
+from flask_mail import Mail, Message
+from scripts import Helper
 
 api_url = 'https://appdomainteam3api.herokuapp.com'
 server = 'AppDomainTeam3.database.windows.net'
@@ -23,11 +25,13 @@ except Exception as ex:
     sys.exit()
 
 app = Flask(__name__)
-CORS(app)
-api = Api(app)
+app.config.from_object("config.DevelopementConfig")
 app.config['SQLALCHEMY_DATABASE_URI'] = server
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+mail = Mail(app)
+CORS(app)
+api = Api(app)
 
 resource_fields = {
     'id': fields.Integer,
@@ -145,8 +149,14 @@ class CreateUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, is_password_expired, reactivate_user_date) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01');""")
+        password = Helper.GeneratePassword()
+        hashed_password = generate_password_hash(password)
+        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, is_password_expired, reactivate_user_date, hashed_password) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');""")
+        msg = Message('Hello from appdomainteam3!', recipients=[email])
+        msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
+        mail.send(msg)
+        
 
 class NewAccount(Resource):
     def post(self):
