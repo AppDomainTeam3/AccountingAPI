@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests, json
 from datetime import datetime
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from flask_mail import Mail, Message
 from scripts import Helper
 
@@ -45,6 +45,11 @@ resource_fields = {
     'is_active': fields.String,
     'is_password_expired': fields.String,
     'reactivate_user_date': fields.String
+}
+
+Password_fields = {
+    'id': fields.Integer,
+    'password': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -157,7 +162,6 @@ class CreateUser(Resource):
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
         mail.send(msg)
         
-
 class NewAccount(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -183,7 +187,51 @@ class NewAccount(Resource):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
                                               is_password_expired, reactivate_user_date, hashed_password) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');""")
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');
+                        INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
+
+class GetPasswords(Resource):
+    #@marshal_with(Password_fields)
+    def get(self, user_id):
+        resultproxy = engine.execute(f"select * from Passwords where id = {user_id}")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                value = temp[0]
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(404, message="404 user not found")
+        response = Response(json.dumps(a), status=200, mimetype='application/json')
+        return response
+
+class TestNewPassword(Resource):
+    def post(self, user_id):
+        parser = reqparse.RequestParser()
+        parser.add_argument('currentPassword')
+        parser.add_argument('newPassword')
+        args = parser.parse_args()
+        currentPassword = args['currentPassword']
+        newPassword = args['newPassword']
+        sqlCurrentPassword = requests.get(f"{api_url}/users/{user_id}").json()[0]['hashed_password']
+        previousPasswords = requests.get(f"{api_url}/users/{user_id}/get_passwords").json()
+        if (check_password_hash(sqlCurrentPassword, currentPassword) == False):
+            response = Response("Incorrect current password!", status=401, mimetype='application/json')
+            return response
+        for entry in previousPasswords:
+            if check_password_hash(entry['password'], newPassword):
+                response = Response("New password has been used before!", status=406, mimetype='application/json')
+                return response
+        newPassword = generate_password_hash(newPassword)
+        engine.execute(f"""UPDATE Users SET hashed_password = '{newPassword}' WHERE id = {user_id}; INSERT INTO Passwords (id, password) VALUES ({user_id}, '{newPassword}');""")
+        response = Response("Password has been updated!", status=200, mimetype='application/json')
+        return response
+
+    def get(self, user_id):
+        return Response("Testing!", status=200, mimetype='application/json')
 
 class EditUser(Resource):
     def post(self, user_id):
@@ -208,7 +256,8 @@ class EditUser(Resource):
         avatarlink = args['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';")
+        engine.execute(f"""UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}',
+                           avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';""")
         response = Response(f"'{username}' updated\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
@@ -220,11 +269,12 @@ api.add_resource(GetHashedPassword, "/users/<string:hashed_password>")
 api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 api.add_resource(GetUserCount, "/users/count")
+api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
 api.add_resource(NewAccount, "/users/new-account")
 api.add_resource(EditUser, "/users/<int:user_id>/edit")
-
+api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
 if (__name__) == "__main__":
     app.run(debug=False)
