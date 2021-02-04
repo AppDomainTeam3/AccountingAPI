@@ -219,16 +219,12 @@ class TestNewPassword(Resource):
         sqlCurrentPassword = requests.get(f"{api_url}/users/{user_id}").json()[0]['hashed_password']
         previousPasswords = requests.get(f"{api_url}/users/{user_id}/get_passwords").json()
         if (check_password_hash(sqlCurrentPassword, currentPassword) == False):
-            print('Password does not match!')
             response = Response("Incorrect current password!", status=401, mimetype='application/json')
             return response
-        print('Password matches!')
         for entry in previousPasswords:
             if check_password_hash(entry['password'], newPassword):
-                print('Password has been used before!')
                 response = Response("New password has been used before!", status=406, mimetype='application/json')
                 return response
-        print('Password Updated!')
         newPassword = generate_password_hash(newPassword)
         engine.execute(f"""UPDATE Users SET hashed_password = '{newPassword}' WHERE id = {user_id}; INSERT INTO Passwords (id, password) VALUES ({user_id}, '{newPassword}');""")
         response = Response("Password has been updated!", status=200, mimetype='application/json')
