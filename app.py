@@ -47,6 +47,11 @@ resource_fields = {
     'reactivate_user_date': fields.String
 }
 
+Password_fields = {
+    'id': fields.Integer,
+    'password': fields.String
+}
+
 class GetAllUsers(Resource):
     @marshal_with(resource_fields)
     def get(self):
@@ -183,7 +188,27 @@ class NewAccount(Resource):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
                                               is_password_expired, reactivate_user_date, hashed_password) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');""")
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');
+                        INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
+
+
+class GetPasswords(Resource):
+    #@marshal_with(Password_fields)
+    def get(self, user_id):
+        resultproxy = engine.execute(f"select * from Passwords where id = {user_id}")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                value = temp[0]
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(404, message="404 user not found")
+        response = Response(json.dumps(a), status=200, mimetype='application/json')
+        return response
 
 class EditUser(Resource):
     def post(self, user_id):
@@ -194,6 +219,7 @@ class EditUser(Resource):
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
+        parser.add_argument('password')
         args = parser.parse_args()
         reactivateUserDate = args['deactivate']
         if reactivateUserDate == '':
@@ -206,9 +232,13 @@ class EditUser(Resource):
         firstname = args['firstname']
         lastname = args['lastname']
         avatarlink = args['avatarlink']
+        password = args['password']
+        hashed_password = generate_password_hash(password)
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        engine.execute(f"UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}', avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';")
+        engine.execute(f"""UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}',
+                           avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}', 
+                           hashed_password = '{hashed_password}' WHERE id = '{user_id}'; UPDATE Passwords SET password = '{hashed_password}' WHERE id = {user_id};""")
         response = Response(f"'{username}' updated\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
@@ -220,6 +250,7 @@ api.add_resource(GetHashedPassword, "/users/<string:hashed_password>")
 api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 api.add_resource(GetUserCount, "/users/count")
+api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
