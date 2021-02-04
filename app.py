@@ -47,11 +47,6 @@ resource_fields = {
     'reactivate_user_date': fields.String
 }
 
-Password_fields = {
-    'id': fields.Integer,
-    'password': fields.String
-}
-
 class GetAllUsers(Resource):
     @marshal_with(resource_fields)
     def get(self):
@@ -116,23 +111,6 @@ class GetUserCount(Resource):
             return 0
         return a[0]['count']
 
-class GetHashedPassword(Resource):
-    @marshal_with(resource_fields)
-    def get(self, hashed_password):
-        resultproxy = engine.execute(f"select * from Users where hashed_password = '{hashed_password}'")
-        d, a = {}, []
-        for rowproxy in resultproxy:
-            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
-            for column, value in rowproxy.items():
-                # build up the dictionary
-                temp = str(value).split()
-                value = temp[0]
-                d = {**d, **{column: value}}
-            a.append(d)
-        if not a:
-            abort(404, message="404 password not found")
-        return a
-
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -190,8 +168,29 @@ class NewAccount(Resource):
                         VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
 
+class ForgotPassword(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('username')
+        parser.add_argument('email')
+        args = parser.parse_args()
+        username = args['username']
+        email = args['email']
+        response = requests.get(f"{api_url}/users/{username}")
+        if (response.status_code != 200):
+            return Response("No user with that username!", status=404, mimetype='application/json')
+        if (response.json()[0]['email'] != email):
+            return Response(f"Email does not match email on file for {username}!", status=406, mimetype='application/json')
+        id = response.json()[0]['id']
+        password = Helper.GeneratePassword()
+        msg = Message('Hello from appdomainteam3!', recipients=[email])
+        msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
+        mail.send(msg)
+        password = generate_password_hash(password)
+        engine.execute(f"""UPDATE Users SET hashed_password = '{password}' WHERE id = {id}; INSERT INTO Passwords (id, password) VALUES ({id}, '{password}');""")
+        return Response(f"Temporary password sent!", status=200, mimetype='application/json')
+
 class GetPasswords(Resource):
-    #@marshal_with(Password_fields)
     def get(self, user_id):
         resultproxy = engine.execute(f"select * from Passwords where id = {user_id}")
         d, a = {}, []
@@ -265,7 +264,6 @@ class EditUser(Resource):
 
 # GET
 api.add_resource(GetAllUsers, "/users")
-api.add_resource(GetHashedPassword, "/users/<string:hashed_password>")
 api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 api.add_resource(GetUserCount, "/users/count")
@@ -275,6 +273,7 @@ api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 api.add_resource(CreateUser, "/users/create-user")
 api.add_resource(NewAccount, "/users/new-account")
 api.add_resource(EditUser, "/users/<int:user_id>/edit")
+api.add_resource(ForgotPassword, "/forgot_password")
 api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
 if (__name__) == "__main__":
     app.run(debug=False)
