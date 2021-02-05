@@ -10,3 +10,5 @@ myprojectAPI/
 apienv/
 
 __pycache__/
+
+env2/

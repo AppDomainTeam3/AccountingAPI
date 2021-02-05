@@ -5,6 +5,7 @@ from flask_cors import CORS
 import os, sys, requests, json
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
+from datetime import datetime, timedelta
 from flask_mail import Mail, Message
 from scripts import Helper
 
@@ -45,7 +46,8 @@ resource_fields = {
     'is_active': fields.String,
     'is_password_expired': fields.String,
     'reactivate_user_date': fields.String,
-    'failed_login_attempts': fields.Integer
+    'failed_login_attempts': fields.Integer,
+    'password_expiration_date': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -121,6 +123,7 @@ class CreateUser(Resource):
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
+        parser.add_argument('password_expiration_date')
         args = parser.parse_args()
         email = args['email']
         usertype = args['usertype']
@@ -131,13 +134,15 @@ class CreateUser(Resource):
         month = time.strftime("%m")
         username = firstname[0].lower() + lastname.lower() + month + year
         avatarlink = args['avatarlink']
+        password_expiration_date = time + timedelta(days=7)
+        password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         password = Helper.GeneratePassword()
         hashed_password = generate_password_hash(password)
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
-                                            is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0);""")
+                                            is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts, password_expiration_date) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');""")
         msg = Message('Hello from appdomainteam3!', recipients=[email])
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
         mail.send(msg)
@@ -151,6 +156,7 @@ class NewAccount(Resource):
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
         parser.add_argument('password')
+        parser.add_argument('password_expiration_date')
         args = parser.parse_args()
         email = args['email']
         usertype = 'regular_user'
@@ -163,11 +169,13 @@ class NewAccount(Resource):
         month = time.strftime("%m")
         username = firstname[0].lower() + lastname.lower() + month + year
         avatarlink = args['avatarlink']
+        password_expiration_date = time + timedelta(days=7)
+        password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
-                                              is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0);
+                                              is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts,password_expiration_date) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
 
 class ForgotPassword(Resource):
