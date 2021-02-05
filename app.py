@@ -3,8 +3,9 @@ from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests, json
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
+from datetime import datetime, timedelta
 from flask_mail import Mail, Message
 from scripts import Helper
 
@@ -44,7 +45,9 @@ resource_fields = {
     'hashed_password': fields.String,
     'is_active': fields.String,
     'is_password_expired': fields.String,
-    'reactivate_user_date': fields.String
+    'reactivate_user_date': fields.String,
+    'failed_login_attempts': fields.Integer,
+    'password_expiration_date': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -120,6 +123,7 @@ class CreateUser(Resource):
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
+        parser.add_argument('password_expiration_date')
         args = parser.parse_args()
         email = args['email']
         usertype = args['usertype']
@@ -130,12 +134,15 @@ class CreateUser(Resource):
         month = time.strftime("%m")
         username = firstname[0].lower() + lastname.lower() + month + year
         avatarlink = args['avatarlink']
+        password_expiration_date = time + timedelta(days=7)
+        password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         password = Helper.GeneratePassword()
         hashed_password = generate_password_hash(password)
-        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, is_password_expired, reactivate_user_date, hashed_password) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');""")
+        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
+                                            is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts, password_expiration_date) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');""")
         msg = Message('Hello from appdomainteam3!', recipients=[email])
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
         mail.send(msg)
@@ -149,6 +156,7 @@ class NewAccount(Resource):
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
         parser.add_argument('password')
+        parser.add_argument('password_expiration_date')
         args = parser.parse_args()
         email = args['email']
         usertype = 'regular_user'
@@ -161,11 +169,13 @@ class NewAccount(Resource):
         month = time.strftime("%m")
         username = firstname[0].lower() + lastname.lower() + month + year
         avatarlink = args['avatarlink']
+        password_expiration_date = time + timedelta(days=7)
+        password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
-                                              is_password_expired, reactivate_user_date, hashed_password) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}');
+                                              is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts,password_expiration_date) 
+                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
 
 class ForgotPassword(Resource):
@@ -189,6 +199,21 @@ class ForgotPassword(Resource):
         password = generate_password_hash(password)
         engine.execute(f"""UPDATE Users SET hashed_password = '{password}' WHERE id = {id}; INSERT INTO Passwords (id, password) VALUES ({id}, '{password}');""")
         return Response(f"Temporary password sent!", status=200, mimetype='application/json')
+
+class FailedLogin(Resource):
+    def post(self, user_id):
+        response = requests.get(f"{api_url}/users/{user_id}")
+        if (response.status_code == 404):
+            return Response("User not found", status = 404, mimetype='application/json')
+        if (response.json()[0]['is_active'] == 0):
+            return Response(f"User is disabled until {response.json()[0]['reactivate_user_date']}")
+        failed_logins = response.json()[0]['failed_login_attempts']
+        reactivateUserDate = datetime.now()
+        if (failed_logins >= 2):
+            reactivateUserDate = timedelta(days=1) + datetime.now()
+            reactivateUserDate = reactivateUserDate.strftime('%Y-%m-%d')
+            engine.execute(f"UPDATE Users SET failed_login_attempts = '{failed_logins + 1}', reactivate_user_date = '{reactivateUserDate}', is_active = 0 WHERE id = {user_id};")
+        engine.execute(f"UPDATE Users SET failed_login_attempts = '{failed_logins + 1}' WHERE id = {user_id};")
 
 class GetPasswords(Resource):
     def get(self, user_id):
@@ -275,5 +300,6 @@ api.add_resource(NewAccount, "/users/new-account")
 api.add_resource(EditUser, "/users/<int:user_id>/edit")
 api.add_resource(ForgotPassword, "/forgot_password")
 api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
+api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 if (__name__) == "__main__":
     app.run(debug=False)
