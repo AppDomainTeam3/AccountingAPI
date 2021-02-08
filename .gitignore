@@ -2,3 +2,13 @@
 API_venv/
 
 *.code-workspace
+
+myprojectAPI/
+
+.vscode/
+
+apienv/
+
+__pycache__/
+
+env2/
