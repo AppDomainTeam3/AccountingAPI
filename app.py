@@ -150,6 +150,51 @@ class CreateUser(Resource):
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
         mail.send(msg)
 
+class CreateAccount(Resource):
+    def post(self, username):
+        parser = reqparse.RequestParser()
+        parser.add_argument('accountHolderUsername')
+        parser.add_argument('accountName')
+        parser.add_argument('accountDesc')
+        parser.add_argument('normalSide')
+        parser.add_argument('category')
+        args = parser.parse_args()
+
+        if args['accountHolderUsername'] != None:
+            user = args['accountHolderUsername']
+        else:
+            user = username
+        id = -1
+        accountName = args['accountName']
+        accountDesc = args['accountDesc']
+        normalSide = args['normalSide']
+        category = args['category']
+        subcategory = 'None'
+        balance = 0
+        creationDate = datetime.now().strftime('%Y-%m-%d')
+        accountOrder = 1
+        statement = 'None'
+        comment = 'None'
+        response = requests.get(f"{api_url}/users/{user}")
+        if response.status_code == 404:
+            return response
+        user = response.json()[0]
+        id = user['id']
+        accountNumber = id
+
+        try:
+            engine.execute(f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
+                                                            '{category}', '{subcategory}', {balance}, '{creationDate}', {accountOrder},
+                                                            '{statement}', '{comment}')""")
+        except Exception as e:
+            print(e)
+            return Response("SQL Error", status=500, mimetype='application/json')
+
+        email = user['email']
+        msg = Message('Account Creation Notice', recipients=[email])
+        msg.body = f"Hello,\nThank you for opening a(n) {category} account with us!"
+        mail.send(msg)
+
 class ForgotPassword(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -272,5 +317,7 @@ api.add_resource(EditUser, "/users/<int:user_id>/edit")
 api.add_resource(ForgotPassword, "/forgot_password")
 api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
 api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
+api.add_resource(CreateAccount, "/accounts/create/<string:username>")
+
 if (__name__) == "__main__":
     app.run(debug=False)
