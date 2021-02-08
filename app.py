@@ -50,6 +50,20 @@ resource_fields = {
     'password_expiration_date': fields.String
 }
 
+account_fields = {
+    'id':  fields.Integer,
+    'AccountName': fields.String,
+    'AccountDesc': fields.String,
+    'NormalSide': fields.String,
+    'Category': fields.String,
+    'Subcategory': fields.String,
+    'Balance': fields.Float,
+    'AccountCreationDate': fields.String,
+    'AccountOrder': fields.Integer,
+    'Statement': fields.String,
+    'Comment': fields.String
+}
+
 class GetAllUsers(Resource):
     @marshal_with(resource_fields)
     def get(self):
@@ -113,6 +127,23 @@ class GetUserCount(Resource):
         if not a:
             return 0
         return a[0]['count']
+
+class GetAccounts(Resource):
+    @marshal_with(account_fields)
+    def get(self, user_id):
+        resultproxy = engine.execute(f"SELECT * FROM Accounts where id = {user_id} ORDER BY id ASC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                value = temp[0]
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(404, message="404 Account not found")
+        return a
 
 class CreateUser(Resource):
     def post(self):
@@ -310,6 +341,7 @@ api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 api.add_resource(GetUserCount, "/users/count")
 api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
+api.add_resource(GetAccounts, "/accounts/<int:user_id>")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
