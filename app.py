@@ -205,8 +205,8 @@ class FailedLogin(Resource):
         response = requests.get(f"{api_url}/users/{user_id}")
         if (response.status_code == 404):
             return Response("User not found", status = 404, mimetype='application/json')
-        if (response.json()[0]['is_active'] == 0):
-            return Response(f"User is disabled until {response.json()[0]['reactivate_user_date']}")
+        if (response.json()[0]['is_active'] == 'False'):
+            return Response(f"User is disabled until {response.json()[0]['reactivate_user_date']}", status = 200, mimetype='application/json')
         failed_logins = response.json()[0]['failed_login_attempts']
         reactivateUserDate = datetime.now()
         if (failed_logins >= 2):
