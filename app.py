@@ -123,47 +123,13 @@ class CreateUser(Resource):
         parser.add_argument('firstname')
         parser.add_argument('lastname')
         parser.add_argument('avatarlink')
-        parser.add_argument('password_expiration_date')
-        args = parser.parse_args()
-        email = args['email']
-        usertype = args['usertype']
-        firstname = args['firstname']
-        lastname = args['lastname']
-        time = datetime.now()
-        year = time.strftime("%Y")[2:4]
-        month = time.strftime("%m")
-        username = firstname[0].lower() + lastname.lower() + month + year
-        avatarlink = args['avatarlink']
-        password_expiration_date = time + timedelta(days=7)
-        password_Ex = password_expiration_date.strftime('%Y-%m-%d')
-        if (avatarlink == ''):
-            avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        password = Helper.GeneratePassword()
-        hashed_password = generate_password_hash(password)
-        engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
-                                            is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts, password_expiration_date) 
-                        VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');""")
-        msg = Message('Hello from appdomainteam3!', recipients=[email])
-        msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
-        mail.send(msg)
-        
-class NewAccount(Resource):
-    def post(self):
-        parser = reqparse.RequestParser()
-        id = int(requests.get(f"{api_url}/users/count").text)
-        parser.add_argument('email')
-        parser.add_argument('firstname')
-        parser.add_argument('lastname')
-        parser.add_argument('avatarlink')
         parser.add_argument('password')
         parser.add_argument('password_expiration_date')
         args = parser.parse_args()
         email = args['email']
-        usertype = 'regular_user'
+        usertype = args['usertype'] if args['usertype'] != None else 'regular_user'
         firstname = args['firstname']
         lastname = args['lastname']
-        password = args['password']
-        hashed_password = generate_password_hash(password)
         time = datetime.now()
         year = time.strftime("%Y")[2:4]
         month = time.strftime("%m")
@@ -173,10 +139,16 @@ class NewAccount(Resource):
         password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
+        print(args['password'])
+        password = args['password'] if args['password'] != None else Helper.GeneratePassword()
+        hashed_password = generate_password_hash(password)
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
-                                              is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts,password_expiration_date) 
+                                            is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts, password_expiration_date) 
                         VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
+        msg = Message('Hello from appdomainteam3!', recipients=[email])
+        msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
+        mail.send(msg)
 
 class ForgotPassword(Resource):
     def post(self):
@@ -296,7 +268,6 @@ api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
-api.add_resource(NewAccount, "/users/new-account")
 api.add_resource(EditUser, "/users/<int:user_id>/edit")
 api.add_resource(ForgotPassword, "/forgot_password")
 api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
