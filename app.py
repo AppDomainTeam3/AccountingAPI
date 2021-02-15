@@ -78,7 +78,7 @@ class GetAllUsers(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 user not found")
+            abort(Helper.CustomResponse(404, 'no users found'))
         return a
 
 class GetUserByID(Resource):
@@ -95,7 +95,7 @@ class GetUserByID(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 user not found")
+            abort(Helper.CustomResponse(404, 'user not found with provided id'))
         return a
 
 class GetUserByUsername(Resource):
@@ -112,7 +112,7 @@ class GetUserByUsername(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 user not found")
+            abort(Helper.CustomResponse(404, 'user not found with provided username'))
         return a
 
 class GetUserCount(Resource):
@@ -170,7 +170,6 @@ class CreateUser(Resource):
         password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        print(args['password'])
         password = args['password'] if args['password'] != None else Helper.GeneratePassword()
         hashed_password = generate_password_hash(password)
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
@@ -190,12 +189,15 @@ class CreateAccount(Resource):
         parser.add_argument('normalSide')
         parser.add_argument('category')
         args = parser.parse_args()
-
         if args['accountHolderUsername'] != None:
             user = args['accountHolderUsername']
         else:
             user = username
-        id = -1
+        response = requests.get(f"{api_url}/users/{user}")
+        if response.status_code == 404:
+            return(response.json())
+        user = response.json()[0]
+        id = user['id']
         accountName = args['accountName']
         accountDesc = args['accountDesc']
         normalSide = args['normalSide']
@@ -206,25 +208,25 @@ class CreateAccount(Resource):
         accountOrder = 1
         statement = 'None'
         comment = 'None'
-        response = requests.get(f"{api_url}/users/{user}")
-        if response.status_code == 404:
-            return response
-        user = response.json()[0]
-        id = user['id']
         accountNumber = id
+        isActive = 1
 
-        try:
-            engine.execute(f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
+        query = f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
                                                             '{category}', '{subcategory}', {balance}, '{creationDate}', {accountOrder},
-                                                            '{statement}', '{comment}')""")
+                                                            '{statement}', '{comment}', {isActive})"""
+        try:
+            engine.execute(query)
         except Exception as e:
             print(e)
             return Response("SQL Error", status=500, mimetype='application/json')
 
         email = user['email']
         msg = Message('Account Creation Notice', recipients=[email])
-        msg.body = f"Hello,\nThank you for opening a(n) {category} account with us!"
+        msg.body = f"Hello,\nThank you for opening a {category} account with us!"
         mail.send(msg)
+
+        response = Helper.CustomResponse(200, 'Account Created!')
+        return response
 
 class ForgotPassword(Resource):
     def post(self):
