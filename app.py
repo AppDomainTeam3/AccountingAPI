@@ -53,6 +53,7 @@ resource_fields = {
 account_fields = {
     'id':  fields.Integer,
     'AccountName': fields.String,
+    'AccountNumber': fields.Integer,
     'AccountDesc': fields.String,
     'NormalSide': fields.String,
     'Category': fields.String,
