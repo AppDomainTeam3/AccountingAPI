@@ -151,7 +151,7 @@ class GetAccountByAccountNumber(Resource):
     @marshal_with(account_fields)
     def get(self, account_number):
         resultproxy = engine.execute(f"SELECT * FROM Accounts where AccountNumber = {account_number} ORDER BY id ASC")
-        d, a = {}, []
+        d = {}
         for rowproxy in resultproxy:
             # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
             for column, value in rowproxy.items():
@@ -159,10 +159,9 @@ class GetAccountByAccountNumber(Resource):
                 temp = str(value).split()
                 value = temp[0]
                 d = {**d, **{column: value}}
-            a.append(d)
-        if not a:
+        if not d:
             abort(Helper.CustomResponse(404, 'account not found with provided account number'))
-        return a
+        return d
 
 class CreateUser(Resource):
     def post(self):
@@ -245,6 +244,38 @@ class CreateAccount(Resource):
         mail.send(msg)
 
         response = Helper.CustomResponse(200, 'Account Created!')
+        return response
+
+class EditAccount(Resource):
+    def post(self, account_number):
+        parser = reqparse.RequestParser()
+        parser.add_argument('accountName')
+        parser.add_argument('accountDesc')
+        parser.add_argument('normalSide')
+        parser.add_argument('category')
+        parser.add_argument('subcategory')
+        parser.add_argument('accountOrder')
+        parser.add_argument('statement')
+        parser.add_argument('comment')
+        args = parser.parse_args()
+
+        accountName = args['accountName']
+        accountDesc = args['accountDesc']
+        normalSide = args['normalSide']
+        category = args['category']
+        subcategory = args['subcategory']
+        accountOrder = args['accountOrder']
+        comment = args['comment']
+
+        query = f"""UPDATE Accounts SET AccountName = '{accountName}', AccountDesc = '{accountDesc}', NormalSide = '{normalSide}', Category = '{category}', Subcategory = '{subcategory}', AccountOrder = {accountOrder}, Comment = '{comment}' WHERE AccountNumber = {account_number}"""
+
+        try:
+            engine.execute(query)
+        except Exception as e:
+            print(e)
+            return Response("SQL Error", status=500, mimetype='application/json')
+
+        response = Helper.CustomResponse(200, 'Account Edited Successfully!')
         return response
 
 class ToggleAccountActiveStatus(Resource):
@@ -395,6 +426,7 @@ api.add_resource(ForgotPassword, "/forgot_password")
 api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
 api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 api.add_resource(CreateAccount, "/accounts/create/<string:username>")
+api.add_resource(EditAccount, "/accounts/<int:account_number>/edit")
 api.add_resource(ToggleAccountActiveStatus, "/accounts/<int:account_number>/toggle")
 
 if (__name__) == "__main__":
