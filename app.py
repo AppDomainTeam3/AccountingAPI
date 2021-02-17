@@ -53,6 +53,7 @@ resource_fields = {
 account_fields = {
     'id':  fields.Integer,
     'AccountName': fields.String,
+    'AccountNumber': fields.Integer,
     'AccountDesc': fields.String,
     'NormalSide': fields.String,
     'Category': fields.String,
@@ -61,7 +62,8 @@ account_fields = {
     'AccountCreationDate': fields.String,
     'AccountOrder': fields.Integer,
     'Statement': fields.String,
-    'Comment': fields.String
+    'Comment': fields.String,
+    'IsActive': fields.String
 }
 
 class GetAllUsers(Resource):
@@ -78,7 +80,7 @@ class GetAllUsers(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 user not found")
+            abort(Helper.CustomResponse(404, 'no users found'))
         return a
 
 class GetUserByID(Resource):
@@ -95,7 +97,7 @@ class GetUserByID(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 user not found")
+            abort(Helper.CustomResponse(404, 'user not found with provided id'))
         return a
 
 class GetUserByUsername(Resource):
@@ -112,7 +114,7 @@ class GetUserByUsername(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 user not found")
+            abort(Helper.CustomResponse(404, 'user not found with provided username'))
         return a
 
 class GetUserCount(Resource):
@@ -145,6 +147,22 @@ class GetAccounts(Resource):
             abort(404, message="404 Account not found")
         return a
 
+class GetAccountByAccountNumber(Resource):
+    @marshal_with(account_fields)
+    def get(self, account_number):
+        resultproxy = engine.execute(f"SELECT * FROM Accounts where AccountNumber = {account_number} ORDER BY id ASC")
+        d = {}
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                value = temp[0]
+                d = {**d, **{column: value}}
+        if not d:
+            abort(Helper.CustomResponse(404, 'account not found with provided account number'))
+        return d
+
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -170,7 +188,6 @@ class CreateUser(Resource):
         password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        print(args['password'])
         password = args['password'] if args['password'] != None else Helper.GeneratePassword()
         hashed_password = generate_password_hash(password)
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
@@ -190,12 +207,15 @@ class CreateAccount(Resource):
         parser.add_argument('normalSide')
         parser.add_argument('category')
         args = parser.parse_args()
-
         if args['accountHolderUsername'] != None:
             user = args['accountHolderUsername']
         else:
             user = username
-        id = -1
+        response = requests.get(f"{api_url}/users/{user}")
+        if response.status_code == 404:
+            return(response.json())
+        user = response.json()[0]
+        id = user['id']
         accountName = args['accountName']
         accountDesc = args['accountDesc']
         normalSide = args['normalSide']
@@ -206,25 +226,80 @@ class CreateAccount(Resource):
         accountOrder = 1
         statement = 'None'
         comment = 'None'
-        response = requests.get(f"{api_url}/users/{user}")
-        if response.status_code == 404:
-            return response
-        user = response.json()[0]
-        id = user['id']
-        accountNumber = id
+        accountNumber = Helper.GenerateAccountNumber()
+        isActive = 1
 
-        try:
-            engine.execute(f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
+        query = f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
                                                             '{category}', '{subcategory}', {balance}, '{creationDate}', {accountOrder},
-                                                            '{statement}', '{comment}')""")
+                                                            '{statement}', '{comment}', {isActive})"""
+        try:
+            engine.execute(query)
         except Exception as e:
             print(e)
             return Response("SQL Error", status=500, mimetype='application/json')
 
         email = user['email']
         msg = Message('Account Creation Notice', recipients=[email])
-        msg.body = f"Hello,\nThank you for opening a(n) {category} account with us!"
+        msg.body = f"Hello,\nThank you for opening a {category} account with us!"
         mail.send(msg)
+
+        response = Helper.CustomResponse(200, 'Account Created!')
+        return response
+
+class EditAccount(Resource):
+    def post(self, account_number):
+        parser = reqparse.RequestParser()
+        parser.add_argument('accountName')
+        parser.add_argument('accountDesc')
+        parser.add_argument('normalSide')
+        parser.add_argument('category')
+        parser.add_argument('subcategory')
+        parser.add_argument('accountOrder')
+        parser.add_argument('statement')
+        parser.add_argument('comment')
+        args = parser.parse_args()
+
+        accountName = args['accountName']
+        accountDesc = args['accountDesc']
+        normalSide = args['normalSide']
+        category = args['category']
+        subcategory = args['subcategory']
+        accountOrder = args['accountOrder']
+        comment = args['comment']
+
+        query = f"""UPDATE Accounts SET AccountName = '{accountName}', AccountDesc = '{accountDesc}', NormalSide = '{normalSide}', Category = '{category}', Subcategory = '{subcategory}', AccountOrder = {accountOrder}, Comment = '{comment}' WHERE AccountNumber = {account_number}"""
+
+        try:
+            engine.execute(query)
+        except Exception as e:
+            print(e)
+            return Response("SQL Error", status=500, mimetype='application/json')
+
+        response = Helper.CustomResponse(200, 'Account Edited Successfully!')
+        return response
+
+class ToggleAccountActiveStatus(Resource):
+    def post(self, account_number):
+        response = requests.get(f"{api_url}/accounts/{account_number}")
+        if response.status_code == 404:
+            return(response.json())
+        isActive = response.json()['IsActive']
+        query = ''
+        if isActive == 'True':
+            query = f"""UPDATE Accounts SET IsActive = 0 WHERE AccountNumber = {account_number}"""
+        else:
+            query = f"""UPDATE Accounts SET IsActive = 1 WHERE AccountNumber = {account_number}"""
+
+        try:
+            engine.execute(query)
+        except Exception as e:
+            print(e)
+            return Helper.CustomResponse(500, 'SQL Error')
+        if isActive == 'True':
+            return Helper.CustomResponse(200, f"Account {account_number} deactivated!")
+        else:
+            return Helper.CustomResponse(200, f"Account {account_number} activated!")
+
 
 class ForgotPassword(Resource):
     def post(self):
@@ -341,7 +416,8 @@ api.add_resource(GetUserByID, "/users/<int:user_id>")
 api.add_resource(GetUserByUsername, "/users/<string:username>")
 api.add_resource(GetUserCount, "/users/count")
 api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
-api.add_resource(GetAccounts, "/accounts/<int:user_id>")
+api.add_resource(GetAccounts, "/users/<int:user_id>/accounts")
+api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
@@ -350,6 +426,8 @@ api.add_resource(ForgotPassword, "/forgot_password")
 api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
 api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 api.add_resource(CreateAccount, "/accounts/create/<string:username>")
+api.add_resource(EditAccount, "/accounts/<int:account_number>/edit")
+api.add_resource(ToggleAccountActiveStatus, "/accounts/<int:account_number>/toggle")
 
 if (__name__) == "__main__":
     app.run(debug=False)

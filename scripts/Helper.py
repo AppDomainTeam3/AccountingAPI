@@ -1,4 +1,5 @@
-import random
+from flask import Response
+import random, json
 
 def GeneratePassword():
     password = ''
@@ -8,3 +9,10 @@ def GeneratePassword():
     password += random.choice(specials)
     password += str(random.randrange(000000, 999999))
     return password
+
+def GenerateAccountNumber():
+    return random.randrange(00000000, 99999999)
+
+def CustomResponse(status_code, message):
+    data = {'status': status_code, 'message': message}
+    return Response(json.dumps(data), status=status_code, mimetype='application/json')
