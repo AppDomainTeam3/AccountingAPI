@@ -12,3 +12,5 @@ apienv/
 __pycache__/
 
 env2/
+
+query.sql
