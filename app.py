@@ -283,7 +283,7 @@ class ToggleAccountActiveStatus(Resource):
         response = requests.get(f"{api_url}/accounts/{account_number}")
         if response.status_code == 404:
             return(response.json())
-        isActive = response.json()[0]['IsActive']
+        isActive = response.json()['IsActive']
         query = ''
         if isActive == 'True':
             query = f"""UPDATE Accounts SET IsActive = 0 WHERE AccountNumber = {account_number}"""
