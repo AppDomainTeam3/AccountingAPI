@@ -1,4 +1,4 @@
-from flask import Flask, Response
+from flask import Flask, Response, request
 from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -298,10 +298,19 @@ class ToggleAccountActiveStatus(Resource):
         except Exception as e:
             print(e)
             return Helper.CustomResponse(500, 'SQL Error')
+        user = response.json()['id']
         if isActive == 'True':
-            return Helper.CustomResponse(200, f"Account {account_number} deactivated!")
+            message = f"Account {account_number} deactivated!"
+            custom_response = Helper.CustomResponse(200, message)
+            data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Event': message}
+            requests.post(f"{api_url}/users/{user}/events/create", json=data)
+            return custom_response
         else:
-            return Helper.CustomResponse(200, f"Account {account_number} activated!")
+            message = f"Account {account_number} activated!"
+            custom_response = Helper.CustomResponse(200, message)
+            data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
+            requests.post(f"{api_url}/users/{user}/events/create", json=data)
+            return custom_response
 
 
 class ForgotPassword(Resource):
@@ -411,6 +420,17 @@ class EditUser(Resource):
         response = Response(f"'{username}' updated\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
+class CreateEvent(Resource):
+    def post(self, user_id):
+        content = request.get_json()
+        creationDateTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        query = f"""INSERT INTO Events VALUES (0, {user_id}, {content['AccountNumber']}, '{content['Event']}', {content['Amount']}, '{creationDateTime}')"""
+        try:
+            engine.execute(query)
+        except Exception as e:
+            print(e)
+            return Helper.CustomResponse(500, 'SQL Error')
+
 # ENDPOINTS -----------------------------------------------------------------
 
 # GET
@@ -431,6 +451,7 @@ api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 api.add_resource(CreateAccount, "/accounts/create/<string:username>")
 api.add_resource(EditAccount, "/accounts/<int:account_number>/edit")
 api.add_resource(ToggleAccountActiveStatus, "/accounts/<int:account_number>/toggle")
+api.add_resource(CreateEvent, "/users/<int:user_id>/events/create")
 
 if (__name__) == "__main__":
     app.run(debug=False)
