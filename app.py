@@ -302,7 +302,7 @@ class ToggleAccountActiveStatus(Resource):
         if isActive == 'True':
             message = f"Account {account_number} deactivated!"
             custom_response = Helper.CustomResponse(200, message)
-            data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Event': message}
+            data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/users/{user}/events/create", json=data)
             return custom_response
         else:
@@ -424,12 +424,24 @@ class CreateEvent(Resource):
     def post(self, user_id):
         content = request.get_json()
         creationDateTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        query = f"""INSERT INTO Events VALUES (0, {user_id}, {content['AccountNumber']}, '{content['Event']}', {content['Amount']}, '{creationDateTime}')"""
+        eventID = requests.get(f"{api_url}/events/count").json()
+        query = f"""INSERT INTO Events VALUES ({eventID}, {user_id}, {content['AccountNumber']}, '{content['Event']}', {content['Amount']}, '{creationDateTime}')"""
         try:
             engine.execute(query)
         except Exception as e:
             print(e)
             return Helper.CustomResponse(500, 'SQL Error')
+
+class GetEventCount(Resource):
+    def get(self):
+        query = "SELECT COUNT(EventID) from Events"
+        try:
+            resultProxy = engine.execute(query)
+        except Exception as e:
+            print(e)
+            return Helper.CustomResponse(500, 'SQL Error')
+        for rowProxy in resultProxy:
+            return rowProxy[0]
 
 # ENDPOINTS -----------------------------------------------------------------
 
@@ -441,6 +453,7 @@ api.add_resource(GetUserCount, "/users/count")
 api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 api.add_resource(GetAccounts, "/users/<int:user_id>/accounts")
 api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
+api.add_resource(GetEventCount, "/events/count")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
