@@ -286,7 +286,10 @@ class ToggleAccountActiveStatus(Resource):
         isActive = response.json()['IsActive']
         query = ''
         if isActive == 'True':
-            query = f"""UPDATE Accounts SET IsActive = 0 WHERE AccountNumber = {account_number}"""
+            if response.json()['Balance'] == 0:
+                query = f"""UPDATE Accounts SET IsActive = 0 WHERE AccountNumber = {account_number}"""
+            else:
+                return Helper.CustomResponse(406, 'Balance must be $0.00 to be deactivated')
         else:
             query = f"""UPDATE Accounts SET IsActive = 1 WHERE AccountNumber = {account_number}"""
 
