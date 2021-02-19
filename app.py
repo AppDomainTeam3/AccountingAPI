@@ -204,7 +204,11 @@ class CreateUser(Resource):
 
         message = f"User created!"
         data = {'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
-        requests.post(f"{api_url}/events/create", json=data)
+        requests.post(f"{api_url}/events/create", json=data, headers={
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': '*',
+            'Access-Control-Allow-Credentials': 'true'
+        })
 
         msg = Message('Hello from appdomainteam3!', recipients=[email])
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
