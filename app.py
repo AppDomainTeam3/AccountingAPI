@@ -31,7 +31,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = server
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 mail = Mail(app)
-CORS(app, support_credentials=True)
+CORS(app, origins='*', supports_credentials=True)
 api = Api(app)
 
 resource_fields = {
@@ -164,7 +164,6 @@ class GetAccountByAccountNumber(Resource):
         return d
 
 class CreateUser(Resource):
-    @cross_origin(support_credentials=True)
     def post(self):
         parser = reqparse.RequestParser()
         id = int(requests.get(f"{api_url}/users/count").text)
@@ -205,7 +204,7 @@ class CreateUser(Resource):
 
         message = f"User created!"
         data = {'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
-        requests.post(f"{api_url}/events/create", json=data, headers={'Access-Control-Allow-Origin': '*'})
+        requests.post(f"{api_url}/events/create", json=data)
 
         msg = Message('Hello from appdomainteam3!', recipients=[email])
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
@@ -434,7 +433,6 @@ class EditUser(Resource):
         return response
 
 class CreateEvent(Resource):
-    @cross_origin(support_credentials=True)
     def post(self):
         content = request.get_json()
         creationDateTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
