@@ -479,4 +479,4 @@ api.add_resource(ToggleAccountActiveStatus, "/accounts/<int:account_number>/togg
 api.add_resource(CreateEvent, "/events/create")
 
 if (__name__) == "__main__":
-    app.run(host='127.0.0.2', debug=True)
+    app.run(debug=False)
