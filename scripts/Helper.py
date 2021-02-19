@@ -1,5 +1,5 @@
 from flask import Response
-import random, json
+import random, json, urllib.parse
 
 def GeneratePassword():
     password = ''
@@ -16,3 +16,12 @@ def GenerateAccountNumber():
 def CustomResponse(status_code, message):
     data = {'status': status_code, 'message': message}
     return Response(json.dumps(data), status=status_code, mimetype='application/json')
+
+def ParseArgs(str):
+    str = urllib.parse.unquote(str)
+    str = str.split("&")
+    data = {}
+    for split in str:
+        split = split.split("=")
+        data.update({f"{split[0]}": f"{split[1]}"})
+    return data
