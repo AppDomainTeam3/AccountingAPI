@@ -167,33 +167,45 @@ class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         id = int(requests.get(f"{api_url}/users/count").text)
-        parser.add_argument('email')
-        parser.add_argument('usertype')
-        parser.add_argument('firstname')
-        parser.add_argument('lastname')
-        parser.add_argument('avatarlink')
-        parser.add_argument('password')
-        parser.add_argument('password_expiration_date')
+        parser.add_argument('sessionUserID')
+        parser.add_argument('form')
         args = parser.parse_args()
-        email = args['email']
-        usertype = args['usertype'] if args['usertype'] != None else 'regular_user'
-        firstname = args['firstname']
-        lastname = args['lastname']
+
+        sessionUserID = args['sessionUserID']
+        formData = args['form']
+        formDict = Helper.ParseArgs(formData)
+
+        try:
+            usertype = formDict['usertype'] 
+        except:
+            usertype = 'regular_user'
+        firstname = formDict['firstname']
+        lastname = formDict['lastname']
+        email = formDict['email']
         time = datetime.now()
         year = time.strftime("%Y")[2:4]
         month = time.strftime("%m")
         username = firstname[0].lower() + lastname.lower() + month + year
-        avatarlink = args['avatarlink']
+        avatarlink = formDict['avatarlink']
         password_expiration_date = time + timedelta(days=7)
         password_Ex = password_expiration_date.strftime('%Y-%m-%d')
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
-        password = args['password'] if args['password'] != None else Helper.GeneratePassword()
+        try:
+            password = formDict['password']
+        except:
+            password = Helper.GeneratePassword()
+
         hashed_password = generate_password_hash(password)
         engine.execute(f"""INSERT INTO Users (id, username, email, usertype, firstname, lastname, avatarlink, is_active, 
                                             is_password_expired, reactivate_user_date, hashed_password, failed_login_attempts, password_expiration_date) 
                         VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
+
+        message = f"User created!"
+        data = {'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
+        requests.post(f"{api_url}/events/create", json=data)
+
         msg = Message('Hello from appdomainteam3!', recipients=[email])
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
         mail.send(msg)
@@ -303,13 +315,13 @@ class ToggleAccountActiveStatus(Resource):
             message = f"Account {account_number} deactivated!"
             custom_response = Helper.CustomResponse(200, message)
             data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
-            requests.post(f"{api_url}/users/{user}/events/create", json=data)
+            requests.post(f"{api_url}/events/create", json=data)
             return custom_response
         else:
             message = f"Account {account_number} activated!"
             custom_response = Helper.CustomResponse(200, message)
             data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
-            requests.post(f"{api_url}/users/{user}/events/create", json=data)
+            requests.post(f"{api_url}/events/create", json=data)
             return custom_response
 
 
@@ -421,11 +433,11 @@ class EditUser(Resource):
         return response
 
 class CreateEvent(Resource):
-    def post(self, user_id):
+    def post(self):
         content = request.get_json()
         creationDateTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         eventID = requests.get(f"{api_url}/events/count").json()
-        query = f"""INSERT INTO Events VALUES ({eventID}, {user_id}, {content['AccountNumber']}, '{content['Event']}', {content['Amount']}, '{creationDateTime}')"""
+        query = f"""INSERT INTO Events VALUES ({eventID}, {content['SessionUserID']}, {content['UserID']}, {content['AccountNumber']}, '{content['Event']}', {content['Amount']}, '{creationDateTime}')"""
         try:
             engine.execute(query)
         except Exception as e:
@@ -464,7 +476,7 @@ api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 api.add_resource(CreateAccount, "/accounts/create/<string:username>")
 api.add_resource(EditAccount, "/accounts/<int:account_number>/edit")
 api.add_resource(ToggleAccountActiveStatus, "/accounts/<int:account_number>/toggle")
-api.add_resource(CreateEvent, "/users/<int:user_id>/events/create")
+api.add_resource(CreateEvent, "/events/create")
 
 if (__name__) == "__main__":
-    app.run(debug=False)
+    app.run(host='127.0.0.2', debug=True)
