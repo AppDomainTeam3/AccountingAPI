@@ -1,7 +1,7 @@
 from flask import Flask, Response, request
 from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 import os, sys, requests, json
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -31,7 +31,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = server
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 mail = Mail(app)
-CORS(app)
+CORS(app, support_credentials=True)
 api = Api(app)
 
 resource_fields = {
@@ -164,6 +164,7 @@ class GetAccountByAccountNumber(Resource):
         return d
 
 class CreateUser(Resource):
+    @cross_origin(support_credentials=True)
     def post(self):
         parser = reqparse.RequestParser()
         id = int(requests.get(f"{api_url}/users/count").text)
@@ -433,6 +434,7 @@ class EditUser(Resource):
         return response
 
 class CreateEvent(Resource):
+    @cross_origin(support_credentials=True)
     def post(self):
         content = request.get_json()
         creationDateTime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
