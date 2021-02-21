@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from flask_mail import Mail, Message
 from scripts import Helper
 
-api_url = 'https://appdomainteam3api.herokuapp.com'
+api_url = 'http://127.0.0.2:5000'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
 username = os.environ.get('sql_username')
