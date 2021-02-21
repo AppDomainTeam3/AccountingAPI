@@ -1,7 +1,7 @@
 from flask import Flask, Response, request
 from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import os, sys, requests, json
 from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -31,7 +31,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = server
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 mail = Mail(app)
-CORS(app, origins='*', supports_credentials=True)
+CORS(app)
 api = Api(app)
 
 resource_fields = {
@@ -204,11 +204,7 @@ class CreateUser(Resource):
 
         message = f"User created!"
         data = {'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
-        requests.post(f"{api_url}/events/create", json=data, headers={
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': '*',
-            'Access-Control-Allow-Credentials': 'true'
-        })
+        requests.post(f"{api_url}/events/create", json=data)
 
         msg = Message('Hello from appdomainteam3!', recipients=[email])
         msg.body = f"Hello, your login for appdomainteam3 is:\nUsername: {username}\nPassword: {password}"
@@ -447,7 +443,6 @@ class CreateEvent(Resource):
         except Exception as e:
             print(e)
             return Helper.CustomResponse(500, 'SQL Error')
-        return Helper.CustomResponse(200, 'Event Created')
 
 class GetEventCount(Resource):
     def get(self):
