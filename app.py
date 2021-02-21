@@ -394,23 +394,34 @@ class GetPasswords(Resource):
 class UpdatePassword(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('currentPassword')
-        parser.add_argument('newPassword')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
+        parser.add_argument('userID')
         args = parser.parse_args()
-        currentPassword = args['currentPassword']
-        newPassword = args['newPassword']
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        userID = args['userID']
+
+        currentPassword = formDict['currentPassword']
+        newPassword = formDict['newPassword']
         sqlCurrentPassword = requests.get(f"{api_url}/users/{user_id}").json()[0]['hashed_password']
         previousPasswords = requests.get(f"{api_url}/users/{user_id}/get_passwords").json()
+
         if (check_password_hash(sqlCurrentPassword, currentPassword) == False):
-            response = Response("Incorrect current password!", status=401, mimetype='application/json')
+            response = Helper.CustomResponse(401, 'Incorrect current password!')
             return response
         for entry in previousPasswords:
             if check_password_hash(entry['password'], newPassword):
-                response = Response("New password has been used before!", status=406, mimetype='application/json')
+                response = Helper.CustomResponse(406, 'New password has been used before!')
                 return response
         newPassword = generate_password_hash(newPassword)
         engine.execute(f"""UPDATE Users SET hashed_password = '{newPassword}' WHERE id = {user_id}; INSERT INTO Passwords (id, password) VALUES ({user_id}, '{newPassword}');""")
-        response = Response("Password has been updated!", status=200, mimetype='application/json')
+
+        message = "User Password Updated."
+        data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
+        requests.post(f"{api_url}/events/create", json=data)
+
+        response = Helper.CustomResponse(200, 'Password has been updated!')
         return response
 
 class EditUser(Resource):
