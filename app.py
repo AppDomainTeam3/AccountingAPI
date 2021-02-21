@@ -1,5 +1,5 @@
 from flask import Flask, Response, request
-from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
+from flask_restful import Api, Resource, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests, json
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 from flask_mail import Mail, Message
-from scripts import Helper
+from scripts import Helper, Marshal_Fields
 
 api_url = 'http://127.0.0.2:5000'
 server = 'AppDomainTeam3.database.windows.net'
@@ -34,40 +34,8 @@ mail = Mail(app)
 CORS(app)
 api = Api(app)
 
-resource_fields = {
-    'id': fields.Integer,
-    'username': fields.String,
-    'email': fields.String,
-    'usertype': fields.String,
-    'firstname': fields.String,
-    'lastname': fields.String,
-    'avatarlink': fields.String,
-    'hashed_password': fields.String,
-    'is_active': fields.String,
-    'is_password_expired': fields.String,
-    'reactivate_user_date': fields.String,
-    'failed_login_attempts': fields.Integer,
-    'password_expiration_date': fields.String
-}
-
-account_fields = {
-    'id':  fields.Integer,
-    'AccountName': fields.String,
-    'AccountNumber': fields.Integer,
-    'AccountDesc': fields.String,
-    'NormalSide': fields.String,
-    'Category': fields.String,
-    'Subcategory': fields.String,
-    'Balance': fields.Float,
-    'AccountCreationDate': fields.String,
-    'AccountOrder': fields.Integer,
-    'Statement': fields.String,
-    'Comment': fields.String,
-    'IsActive': fields.String
-}
-
 class GetAllUsers(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(Marshal_Fields.resource_fields)
     def get(self):
         resultproxy = engine.execute(f"SELECT * FROM Users ORDER BY id ASC")
         d, a = {}, []
@@ -84,7 +52,7 @@ class GetAllUsers(Resource):
         return a
 
 class GetUserByID(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(Marshal_Fields.resource_fields)
     def get(self, user_id):
         resultproxy = engine.execute(f"select * from Users where id = {user_id}")
         d, a = {}, []
@@ -101,7 +69,7 @@ class GetUserByID(Resource):
         return a
 
 class GetUserByUsername(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(Marshal_Fields.resource_fields)
     def get(self, username):
         resultproxy = engine.execute(f"select * from Users where username = '{username}'")
         d, a = {}, []
@@ -131,7 +99,7 @@ class GetUserCount(Resource):
         return a[0]['count']
 
 class GetAccounts(Resource):
-    @marshal_with(account_fields)
+    @marshal_with(Marshal_Fields.account_fields)
     def get(self, user_id):
         resultproxy = engine.execute(f"SELECT * FROM Accounts where id = {user_id} ORDER BY id ASC")
         d, a = {}, []
@@ -148,7 +116,7 @@ class GetAccounts(Resource):
         return a
 
 class GetAccountByAccountNumber(Resource):
-    @marshal_with(account_fields)
+    @marshal_with(Marshal_Fields.account_fields)
     def get(self, account_number):
         resultproxy = engine.execute(f"SELECT * FROM Accounts where AccountNumber = {account_number} ORDER BY id ASC")
         d = {}
@@ -486,6 +454,21 @@ class GetEventCount(Resource):
         for rowProxy in resultProxy:
             return rowProxy[0]
 
+class GetEventsByAccountNumber(Resource):
+    @marshal_with(Marshal_Fields.event_fields)
+    def get(self, account_number):
+        resultproxy = engine.execute(f"SELECT * FROM Events where AccountNumber = '{account_number}' ORDER BY EventID ASC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no events found'))
+        return a
+
 # ENDPOINTS -----------------------------------------------------------------
 
 # GET
@@ -497,6 +480,7 @@ api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 api.add_resource(GetAccounts, "/users/<int:user_id>/accounts")
 api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
 api.add_resource(GetEventCount, "/events/count")
+api.add_resource(GetEventsByAccountNumber, "/events/<int:account_number>")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
