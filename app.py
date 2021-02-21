@@ -202,7 +202,7 @@ class CreateUser(Resource):
                         VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
 
-        message = f"User created!"
+        message = f"User created"
         data = {'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
@@ -213,14 +213,14 @@ class CreateUser(Resource):
 class CreateAccount(Resource):
     def post(self, username):
         parser = reqparse.RequestParser()
-        parser.add_argument('accountHolderUsername')
-        parser.add_argument('accountName')
-        parser.add_argument('accountDesc')
-        parser.add_argument('normalSide')
-        parser.add_argument('category')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
         args = parser.parse_args()
-        if args['accountHolderUsername'] != None:
-            user = args['accountHolderUsername']
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        
+        if formDict['accountHolderUsername'] != None:
+            user = formDict['accountHolderUsername']
         else:
             user = username
         response = requests.get(f"{api_url}/users/{user}")
@@ -228,10 +228,10 @@ class CreateAccount(Resource):
             return(response.json())
         user = response.json()[0]
         id = user['id']
-        accountName = args['accountName']
-        accountDesc = args['accountDesc']
-        normalSide = args['normalSide']
-        category = args['category']
+        accountName = formDict['accountName']
+        accountDesc = formDict['accountDesc']
+        normalSide = formDict['normalSide']
+        category = formDict['category']
         subcategory = 'None'
         balance = 0
         creationDate = datetime.now().strftime('%Y-%m-%d')
@@ -250,6 +250,10 @@ class CreateAccount(Resource):
             print(e)
             return Response("SQL Error", status=500, mimetype='application/json')
 
+        message = f"Account created"
+        data = { 'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': accountNumber, 'Amount': 0, 'Event': message }
+        requests.post(f"{api_url}/events/create", json=data)
+
         email = user['email']
         msg = Message('Account Creation Notice', recipients=[email])
         msg.body = f"Hello,\nThank you for opening a {category} account with us!"
@@ -261,23 +265,21 @@ class CreateAccount(Resource):
 class EditAccount(Resource):
     def post(self, account_number):
         parser = reqparse.RequestParser()
-        parser.add_argument('accountName')
-        parser.add_argument('accountDesc')
-        parser.add_argument('normalSide')
-        parser.add_argument('category')
-        parser.add_argument('subcategory')
-        parser.add_argument('accountOrder')
-        parser.add_argument('statement')
-        parser.add_argument('comment')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
+        parser.add_argument('userID')
         args = parser.parse_args()
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        userID = args['userID']
 
-        accountName = args['accountName']
-        accountDesc = args['accountDesc']
-        normalSide = args['normalSide']
-        category = args['category']
-        subcategory = args['subcategory']
-        accountOrder = args['accountOrder']
-        comment = args['comment']
+        accountName = formDict['accountName']
+        accountDesc = formDict['accountDesc']
+        normalSide = formDict['normalSide']
+        category = formDict['category']
+        subcategory = formDict['subcategory']
+        accountOrder = formDict['accountOrder']
+        comment = formDict['comment']
 
         query = f"""UPDATE Accounts SET AccountName = '{accountName}', AccountDesc = '{accountDesc}', NormalSide = '{normalSide}', Category = '{category}', Subcategory = '{subcategory}', AccountOrder = {accountOrder}, Comment = '{comment}' WHERE AccountNumber = {account_number}"""
 
@@ -286,6 +288,10 @@ class EditAccount(Resource):
         except Exception as e:
             print(e)
             return Response("SQL Error", status=500, mimetype='application/json')
+
+        message = f"Account updated"
+        data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': account_number, 'Amount': 0, 'Event': message }
+        requests.post(f"{api_url}/events/create", json=data)
 
         response = Helper.CustomResponse(200, 'Account Edited Successfully!')
         return response
@@ -317,13 +323,13 @@ class ToggleAccountActiveStatus(Resource):
             return Helper.CustomResponse(500, 'SQL Error')
         user = response.json()['id']
         if isActive == 'True':
-            message = f"Account {account_number} deactivated!"
+            message = f"Account deactivated"
             custom_response = Helper.CustomResponse(200, message)
             data = { 'SessionUserID': sessionUserID, 'UserID': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/events/create", json=data)
             return custom_response
         else:
-            message = f"Account {account_number} activated!"
+            message = f"Account activated!"
             custom_response = Helper.CustomResponse(200, message)
             data = { 'SessionUserID': sessionUserID, 'UserID': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/events/create", json=data)
@@ -353,7 +359,7 @@ class ForgotPassword(Resource):
         password = generate_password_hash(password)
         engine.execute(f"""UPDATE Users SET hashed_password = '{password}' WHERE id = {id}; INSERT INTO Passwords (id, password) VALUES ({id}, '{password}');""")
 
-        message = 'Used forget password function'
+        message = 'Used forgot password function'
         data = { 'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
@@ -417,7 +423,7 @@ class UpdatePassword(Resource):
         newPassword = generate_password_hash(newPassword)
         engine.execute(f"""UPDATE Users SET hashed_password = '{newPassword}' WHERE id = {user_id}; INSERT INTO Passwords (id, password) VALUES ({user_id}, '{newPassword}');""")
 
-        message = "User Password Updated."
+        message = "User Password Updated"
         data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
@@ -450,7 +456,7 @@ class EditUser(Resource):
         engine.execute(f"""UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}',
                            avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';""")
 
-        message = f"User {user_id} profile updated!"
+        message = f"User profile updated"
         data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
