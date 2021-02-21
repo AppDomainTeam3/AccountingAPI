@@ -457,7 +457,7 @@ class GetEventCount(Resource):
 class GetEventsByAccountNumber(Resource):
     @marshal_with(Marshal_Fields.event_fields)
     def get(self, account_number):
-        resultproxy = engine.execute(f"SELECT * FROM Events where AccountNumber = '{account_number}' ORDER BY EventID ASC")
+        resultproxy = engine.execute(f"SELECT * FROM Events where AccountNumber = '{account_number}' ORDER BY EventID DESC")
         d, a = {}, []
         for rowproxy in resultproxy:
             # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
