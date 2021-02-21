@@ -391,7 +391,7 @@ class GetPasswords(Resource):
         response = Response(json.dumps(a), status=200, mimetype='application/json')
         return response
 
-class TestNewPassword(Resource):
+class UpdatePassword(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument('currentPassword')
@@ -412,9 +412,6 @@ class TestNewPassword(Resource):
         engine.execute(f"""UPDATE Users SET hashed_password = '{newPassword}' WHERE id = {user_id}; INSERT INTO Passwords (id, password) VALUES ({user_id}, '{newPassword}');""")
         response = Response("Password has been updated!", status=200, mimetype='application/json')
         return response
-
-    def get(self, user_id):
-        return Response("Testing!", status=200, mimetype='application/json')
 
 class EditUser(Resource):
     def post(self, user_id):
@@ -488,7 +485,7 @@ api.add_resource(GetEventCount, "/events/count")
 api.add_resource(CreateUser, "/users/create-user")
 api.add_resource(EditUser, "/users/<int:user_id>/edit")
 api.add_resource(ForgotPassword, "/forgot_password")
-api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
+api.add_resource(UpdatePassword, "/users/<int:user_id>/update_password")
 api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 api.add_resource(CreateAccount, "/accounts/create/<string:username>")
 api.add_resource(EditAccount, "/accounts/<int:account_number>/edit")
