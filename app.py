@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from flask_mail import Mail, Message
 from scripts import Helper
 
-api_url = 'https://appdomainteam3api.herokuapp.com'
+api_url = 'http://127.0.0.2:5000'
 server = 'AppDomainTeam3.database.windows.net'
 database = 'AppDomainTeam3'
 username = os.environ.get('sql_username')
@@ -292,6 +292,11 @@ class EditAccount(Resource):
 
 class ToggleAccountActiveStatus(Resource):
     def post(self, account_number):
+        parser = reqparse.RequestParser()
+        parser.add_argument('sessionUserID')
+        args = parser.parse_args()
+        sessionUserID = args['sessionUserID']
+        
         response = requests.get(f"{api_url}/accounts/{account_number}")
         if response.status_code == 404:
             return(response.json())
@@ -314,13 +319,13 @@ class ToggleAccountActiveStatus(Resource):
         if isActive == 'True':
             message = f"Account {account_number} deactivated!"
             custom_response = Helper.CustomResponse(200, message)
-            data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
+            data = { 'SessionUserID': sessionUserID, 'UserID': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/events/create", json=data)
             return custom_response
         else:
             message = f"Account {account_number} activated!"
             custom_response = Helper.CustomResponse(200, message)
-            data = {'id': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
+            data = { 'SessionUserID': sessionUserID, 'UserID': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/events/create", json=data)
             return custom_response
 
@@ -328,11 +333,13 @@ class ToggleAccountActiveStatus(Resource):
 class ForgotPassword(Resource):
     def post(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('username')
-        parser.add_argument('email')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
         args = parser.parse_args()
-        username = args['username']
-        email = args['email']
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        username = formDict['username']
+        email = formDict['email']
         response = requests.get(f"{api_url}/users/{username}")
         if (response.status_code != 200):
             return Response("No user with that username!", status=404, mimetype='application/json')
@@ -345,6 +352,11 @@ class ForgotPassword(Resource):
         mail.send(msg)
         password = generate_password_hash(password)
         engine.execute(f"""UPDATE Users SET hashed_password = '{password}' WHERE id = {id}; INSERT INTO Passwords (id, password) VALUES ({id}, '{password}');""")
+
+        message = 'Used forget password function'
+        data = { 'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
+        requests.post(f"{api_url}/events/create", json=data)
+
         return Response(f"Temporary password sent!", status=200, mimetype='application/json')
 
 class FailedLogin(Resource):
@@ -407,28 +419,33 @@ class TestNewPassword(Resource):
 class EditUser(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('deactivate')
-        parser.add_argument('email')
-        parser.add_argument('usertype')
-        parser.add_argument('firstname')
-        parser.add_argument('lastname')
-        parser.add_argument('avatarlink')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
+        parser.add_argument('userID')
         args = parser.parse_args()
-        reactivateUserDate = args['deactivate']
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        userID = args['userID']
+        reactivateUserDate = formDict['deactivate']
         if reactivateUserDate == '':
             reactivateUserDate = '1900-01-01'
         active = False
         if (datetime.strptime(reactivateUserDate, '%Y-%m-%d') < datetime.now()):
             active = True
-        email = args['email']
-        usertype = args['usertype']
-        firstname = args['firstname']
-        lastname = args['lastname']
-        avatarlink = args['avatarlink']
+        email = formDict['email']
+        usertype = formDict['usertype']
+        firstname = formDict['firstname']
+        lastname = formDict['lastname']
+        avatarlink = formDict['avatarlink']
         if (avatarlink == ''):
             avatarlink = 'https://www.jennstrends.com/wp-content/uploads/2013/10/bad-profile-pic-2-768x768.jpeg'
         engine.execute(f"""UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}',
                            avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';""")
+
+        message = f"User {user_id} profile updated!"
+        data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
+        requests.post(f"{api_url}/events/create", json=data)
+
         response = Response(f"'{username}' updated\n" + json.dumps(args), status=200, mimetype='application/json')
         return response
 
