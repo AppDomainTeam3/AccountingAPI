@@ -107,8 +107,6 @@ class GetAccounts(Resource):
             # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
             for column, value in rowproxy.items():
                 # build up the dictionary
-                temp = str(value).split()
-                value = temp[0]
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
@@ -124,8 +122,6 @@ class GetAccountByAccountNumber(Resource):
             # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
             for column, value in rowproxy.items():
                 # build up the dictionary
-                temp = str(value).split()
-                value = temp[0]
                 d = {**d, **{column: value}}
         if not d:
             abort(Helper.CustomResponse(404, 'account not found with provided account number'))
@@ -202,7 +198,7 @@ class CreateAccount(Resource):
         category = formDict['category']
         subcategory = 'None'
         balance = 0
-        creationDate = datetime.now().strftime('%Y-%m-%d')
+        creationDate = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         accountOrder = 1
         statement = 'None'
         comment = 'None'

@@ -25,7 +25,7 @@ account_fields = {
     'Category': fields.String,
     'Subcategory': fields.String,
     'Balance': fields.Float,
-    'AccountCreationDate': fields.String,
+    'CreationDate': fields.String,
     'AccountOrder': fields.Integer,
     'Statement': fields.String,
     'Comment': fields.String,
