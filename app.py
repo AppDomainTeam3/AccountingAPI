@@ -465,6 +465,21 @@ class GetEventsByAccountNumber(Resource):
             abort(Helper.CustomResponse(404, 'no events found'))
         return a
 
+class GetEvents(Resource):
+    @marshal_with(Marshal_Fields.event_fields)
+    def get(self):
+        resultproxy = engine.execute(f"SELECT * FROM Events ORDER BY EventID DESC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no events found'))
+        return a
+
 # ENDPOINTS -----------------------------------------------------------------
 
 # GET
@@ -476,6 +491,7 @@ api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 api.add_resource(GetAccounts, "/users/<int:user_id>/accounts")
 api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
 api.add_resource(GetEventCount, "/events/count")
+api.add_resource(GetEvents, "/events")
 api.add_resource(GetEventsByAccountNumber, "/events/<int:account_number>")
 
 # POST
