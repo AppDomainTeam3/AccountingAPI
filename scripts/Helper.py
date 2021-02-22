@@ -1,5 +1,5 @@
 from flask import Response
-import random, json, urllib.parse
+import random, json, urllib.parse, requests
 
 def GeneratePassword():
     password = ''
@@ -10,8 +10,14 @@ def GeneratePassword():
     password += str(random.randrange(000000, 999999))
     return password
 
-def GenerateAccountNumber():
-    return random.randrange(00000000, 99999999)
+def GenerateAccountNumber(api_url):
+    isGenerating = True
+    while isGenerating:
+        newAccountNumber = random.randrange(10000000, 99999999)
+        response = requests.get(f"{api_url}/accounts/{newAccountNumber}")
+        if response.status_code != 404:
+            continue
+        return newAccountNumber
 
 def CustomResponse(status_code, message):
     data = {'status': status_code, 'message': message}

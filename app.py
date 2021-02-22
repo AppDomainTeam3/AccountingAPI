@@ -202,7 +202,7 @@ class CreateAccount(Resource):
         accountOrder = 1
         statement = 'None'
         comment = 'None'
-        accountNumber = Helper.GenerateAccountNumber()
+        accountNumber = Helper.GenerateAccountNumber(api_url)
         isActive = 1
 
         query = f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
