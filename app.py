@@ -202,8 +202,12 @@ class CreateAccount(Resource):
         accountOrder = 1
         statement = 'None'
         comment = 'None'
-        accountNumber = Helper.GenerateAccountNumber()
+        accountNumber = Helper.GenerateAccountNumber(api_url)
         isActive = 1
+
+        response = Helper.CheckForDuplicateAccountName(id, accountName, api_url)
+        if response.status_code != 200:
+            return response
 
         query = f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
                                                             '{category}', '{subcategory}', {balance}, '{creationDate}', {accountOrder},
