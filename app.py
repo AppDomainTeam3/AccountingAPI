@@ -469,6 +469,21 @@ class GetEventsByAccountNumber(Resource):
             abort(Helper.CustomResponse(404, 'no events found'))
         return a
 
+class GetBalanceEventsByUserID(Resource):
+    @marshal_with(Marshal_Fields.event_fields)
+    def get(self, user_id):
+        resultproxy = engine.execute(f"SELECT * FROM Events where UserID = {user_id} AND Amount != 0 ORDER BY EventID DESC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no events found'))
+        return a
+
 class GetEvents(Resource):
     @marshal_with(Marshal_Fields.event_fields)
     def get(self):
@@ -497,6 +512,7 @@ api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
 api.add_resource(GetEventCount, "/events/count")
 api.add_resource(GetEvents, "/events")
 api.add_resource(GetEventsByAccountNumber, "/events/<int:account_number>")
+api.add_resource(GetBalanceEventsByUserID, "/events/<int:user_id>/balance")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
