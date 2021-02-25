@@ -1,5 +1,5 @@
 from flask import Flask, Response, request
-from flask_restful import Api, Resource, fields, marshal_with, abort, reqparse
+from flask_restful import Api, Resource, marshal_with, abort, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, sys, requests, json
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime, timedelta
 from flask_mail import Mail, Message
-from scripts import Helper
+from scripts import Helper, Marshal_Fields
 
 api_url = 'http://127.0.0.2:5000'
 server = 'AppDomainTeam3.database.windows.net'
@@ -34,40 +34,8 @@ mail = Mail(app)
 CORS(app)
 api = Api(app)
 
-resource_fields = {
-    'id': fields.Integer,
-    'username': fields.String,
-    'email': fields.String,
-    'usertype': fields.String,
-    'firstname': fields.String,
-    'lastname': fields.String,
-    'avatarlink': fields.String,
-    'hashed_password': fields.String,
-    'is_active': fields.String,
-    'is_password_expired': fields.String,
-    'reactivate_user_date': fields.String,
-    'failed_login_attempts': fields.Integer,
-    'password_expiration_date': fields.String
-}
-
-account_fields = {
-    'id':  fields.Integer,
-    'AccountName': fields.String,
-    'AccountNumber': fields.Integer,
-    'AccountDesc': fields.String,
-    'NormalSide': fields.String,
-    'Category': fields.String,
-    'Subcategory': fields.String,
-    'Balance': fields.Float,
-    'AccountCreationDate': fields.String,
-    'AccountOrder': fields.Integer,
-    'Statement': fields.String,
-    'Comment': fields.String,
-    'IsActive': fields.String
-}
-
 class GetAllUsers(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(Marshal_Fields.resource_fields)
     def get(self):
         resultproxy = engine.execute(f"SELECT * FROM Users ORDER BY id ASC")
         d, a = {}, []
@@ -84,7 +52,7 @@ class GetAllUsers(Resource):
         return a
 
 class GetUserByID(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(Marshal_Fields.resource_fields)
     def get(self, user_id):
         resultproxy = engine.execute(f"select * from Users where id = {user_id}")
         d, a = {}, []
@@ -101,7 +69,7 @@ class GetUserByID(Resource):
         return a
 
 class GetUserByUsername(Resource):
-    @marshal_with(resource_fields)
+    @marshal_with(Marshal_Fields.resource_fields)
     def get(self, username):
         resultproxy = engine.execute(f"select * from Users where username = '{username}'")
         d, a = {}, []
@@ -131,9 +99,38 @@ class GetUserCount(Resource):
         return a[0]['count']
 
 class GetAccounts(Resource):
-    @marshal_with(account_fields)
+    @marshal_with(Marshal_Fields.account_fields)
     def get(self, user_id):
         resultproxy = engine.execute(f"SELECT * FROM Accounts where id = {user_id} ORDER BY id ASC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(404, message="404 Account not found")
+        return a
+
+class GetAccountByAccountNumber(Resource):
+    @marshal_with(Marshal_Fields.account_fields)
+    def get(self, account_number):
+        resultproxy = engine.execute(f"SELECT * FROM Accounts where AccountNumber = {account_number} ORDER BY id ASC")
+        d = {}
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+        if not d:
+            abort(Helper.CustomResponse(404, 'account not found with provided account number'))
+        return d
+
+class GetAllAccounts(Resource):
+    @marshal_with(Marshal_Fields.account_fields)
+    def get(self):
+        resultproxy = engine.execute(f"SELECT * FROM Accounts")
         d, a = {}, []
         for rowproxy in resultproxy:
             # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
@@ -144,24 +141,8 @@ class GetAccounts(Resource):
                 d = {**d, **{column: value}}
             a.append(d)
         if not a:
-            abort(404, message="404 Account not found")
+            abort(Helper.CustomResponse(404, 'no accounts found'))
         return a
-
-class GetAccountByAccountNumber(Resource):
-    @marshal_with(account_fields)
-    def get(self, account_number):
-        resultproxy = engine.execute(f"SELECT * FROM Accounts where AccountNumber = {account_number} ORDER BY id ASC")
-        d = {}
-        for rowproxy in resultproxy:
-            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
-            for column, value in rowproxy.items():
-                # build up the dictionary
-                temp = str(value).split()
-                value = temp[0]
-                d = {**d, **{column: value}}
-        if not d:
-            abort(Helper.CustomResponse(404, 'account not found with provided account number'))
-        return d
 
 class CreateUser(Resource):
     def post(self):
@@ -202,7 +183,7 @@ class CreateUser(Resource):
                         VALUES ({id}, '{username}', '{email}','{usertype}', '{firstname}', '{lastname}', '{avatarlink}', 1, 0, '1900-01-01', '{hashed_password}', 0,'{password_Ex}');
                         INSERT INTO Passwords (id, password) VALUES ({id}, '{hashed_password}');""")
 
-        message = f"User created!"
+        message = f"User created"
         data = {'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
@@ -213,14 +194,14 @@ class CreateUser(Resource):
 class CreateAccount(Resource):
     def post(self, username):
         parser = reqparse.RequestParser()
-        parser.add_argument('accountHolderUsername')
-        parser.add_argument('accountName')
-        parser.add_argument('accountDesc')
-        parser.add_argument('normalSide')
-        parser.add_argument('category')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
         args = parser.parse_args()
-        if args['accountHolderUsername'] != None:
-            user = args['accountHolderUsername']
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        
+        if formDict['accountHolderUsername'] != None:
+            user = formDict['accountHolderUsername']
         else:
             user = username
         response = requests.get(f"{api_url}/users/{user}")
@@ -228,18 +209,22 @@ class CreateAccount(Resource):
             return(response.json())
         user = response.json()[0]
         id = user['id']
-        accountName = args['accountName']
-        accountDesc = args['accountDesc']
-        normalSide = args['normalSide']
-        category = args['category']
+        accountName = formDict['accountName']
+        accountDesc = formDict['accountDesc']
+        normalSide = formDict['normalSide']
+        category = formDict['category']
         subcategory = 'None'
         balance = 0
-        creationDate = datetime.now().strftime('%Y-%m-%d')
+        creationDate = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         accountOrder = 1
         statement = 'None'
         comment = 'None'
-        accountNumber = Helper.GenerateAccountNumber()
+        accountNumber = Helper.GenerateAccountNumber(api_url)
         isActive = 1
+
+        response = Helper.CheckForDuplicateAccountName(id, accountName, api_url)
+        if response.status_code != 200:
+            return response
 
         query = f"""INSERT INTO Accounts VALUES ({id}, '{accountName}', {accountNumber}, '{accountDesc}', '{normalSide}',
                                                             '{category}', '{subcategory}', {balance}, '{creationDate}', {accountOrder},
@@ -249,6 +234,10 @@ class CreateAccount(Resource):
         except Exception as e:
             print(e)
             return Response("SQL Error", status=500, mimetype='application/json')
+
+        message = f"Account created"
+        data = { 'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': accountNumber, 'Amount': 0, 'Event': message }
+        requests.post(f"{api_url}/events/create", json=data)
 
         email = user['email']
         msg = Message('Account Creation Notice', recipients=[email])
@@ -261,23 +250,21 @@ class CreateAccount(Resource):
 class EditAccount(Resource):
     def post(self, account_number):
         parser = reqparse.RequestParser()
-        parser.add_argument('accountName')
-        parser.add_argument('accountDesc')
-        parser.add_argument('normalSide')
-        parser.add_argument('category')
-        parser.add_argument('subcategory')
-        parser.add_argument('accountOrder')
-        parser.add_argument('statement')
-        parser.add_argument('comment')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
+        parser.add_argument('userID')
         args = parser.parse_args()
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        userID = args['userID']
 
-        accountName = args['accountName']
-        accountDesc = args['accountDesc']
-        normalSide = args['normalSide']
-        category = args['category']
-        subcategory = args['subcategory']
-        accountOrder = args['accountOrder']
-        comment = args['comment']
+        accountName = formDict['accountName']
+        accountDesc = formDict['accountDesc']
+        normalSide = formDict['normalSide']
+        category = formDict['category']
+        subcategory = formDict['subcategory']
+        accountOrder = formDict['accountOrder']
+        comment = formDict['comment']
 
         query = f"""UPDATE Accounts SET AccountName = '{accountName}', AccountDesc = '{accountDesc}', NormalSide = '{normalSide}', Category = '{category}', Subcategory = '{subcategory}', AccountOrder = {accountOrder}, Comment = '{comment}' WHERE AccountNumber = {account_number}"""
 
@@ -286,6 +273,10 @@ class EditAccount(Resource):
         except Exception as e:
             print(e)
             return Response("SQL Error", status=500, mimetype='application/json')
+
+        message = f"Account updated"
+        data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': account_number, 'Amount': 0, 'Event': message }
+        requests.post(f"{api_url}/events/create", json=data)
 
         response = Helper.CustomResponse(200, 'Account Edited Successfully!')
         return response
@@ -317,13 +308,13 @@ class ToggleAccountActiveStatus(Resource):
             return Helper.CustomResponse(500, 'SQL Error')
         user = response.json()['id']
         if isActive == 'True':
-            message = f"Account {account_number} deactivated!"
+            message = f"Account deactivated"
             custom_response = Helper.CustomResponse(200, message)
             data = { 'SessionUserID': sessionUserID, 'UserID': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/events/create", json=data)
             return custom_response
         else:
-            message = f"Account {account_number} activated!"
+            message = f"Account activated!"
             custom_response = Helper.CustomResponse(200, message)
             data = { 'SessionUserID': sessionUserID, 'UserID': response.json()['id'], 'AccountNumber': response.json()['AccountNumber'], 'Amount': 0, 'Event': message}
             requests.post(f"{api_url}/events/create", json=data)
@@ -353,7 +344,7 @@ class ForgotPassword(Resource):
         password = generate_password_hash(password)
         engine.execute(f"""UPDATE Users SET hashed_password = '{password}' WHERE id = {id}; INSERT INTO Passwords (id, password) VALUES ({id}, '{password}');""")
 
-        message = 'Used forget password function'
+        message = 'Used forgot password function'
         data = { 'SessionUserID': sessionUserID, 'UserID': id, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
@@ -391,30 +382,38 @@ class GetPasswords(Resource):
         response = Response(json.dumps(a), status=200, mimetype='application/json')
         return response
 
-class TestNewPassword(Resource):
+class UpdatePassword(Resource):
     def post(self, user_id):
         parser = reqparse.RequestParser()
-        parser.add_argument('currentPassword')
-        parser.add_argument('newPassword')
+        parser.add_argument('form')
+        parser.add_argument('sessionUserID')
+        parser.add_argument('userID')
         args = parser.parse_args()
-        currentPassword = args['currentPassword']
-        newPassword = args['newPassword']
+        formDict = Helper.ParseArgs(args['form'])
+        sessionUserID = args['sessionUserID']
+        userID = args['userID']
+
+        currentPassword = formDict['currentPassword']
+        newPassword = formDict['newPassword']
         sqlCurrentPassword = requests.get(f"{api_url}/users/{user_id}").json()[0]['hashed_password']
         previousPasswords = requests.get(f"{api_url}/users/{user_id}/get_passwords").json()
+
         if (check_password_hash(sqlCurrentPassword, currentPassword) == False):
-            response = Response("Incorrect current password!", status=401, mimetype='application/json')
+            response = Helper.CustomResponse(401, 'Incorrect current password!')
             return response
         for entry in previousPasswords:
             if check_password_hash(entry['password'], newPassword):
-                response = Response("New password has been used before!", status=406, mimetype='application/json')
+                response = Helper.CustomResponse(406, 'New password has been used before!')
                 return response
         newPassword = generate_password_hash(newPassword)
         engine.execute(f"""UPDATE Users SET hashed_password = '{newPassword}' WHERE id = {user_id}; INSERT INTO Passwords (id, password) VALUES ({user_id}, '{newPassword}');""")
-        response = Response("Password has been updated!", status=200, mimetype='application/json')
-        return response
 
-    def get(self, user_id):
-        return Response("Testing!", status=200, mimetype='application/json')
+        message = "User Password Updated"
+        data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
+        requests.post(f"{api_url}/events/create", json=data)
+
+        response = Helper.CustomResponse(200, 'Password has been updated!')
+        return response
 
 class EditUser(Resource):
     def post(self, user_id):
@@ -442,7 +441,7 @@ class EditUser(Resource):
         engine.execute(f"""UPDATE Users SET email = '{email}', usertype = '{usertype}', firstname = '{firstname}', lastname = '{lastname}',
                            avatarlink = '{avatarlink}', is_active = '{active}', reactivate_user_date = '{reactivateUserDate}' WHERE id = '{user_id}';""")
 
-        message = f"User {user_id} profile updated!"
+        message = f"User profile updated"
         data = { 'SessionUserID': sessionUserID, 'UserID': userID, 'AccountNumber': 0, 'Amount': 0, 'Event': message}
         requests.post(f"{api_url}/events/create", json=data)
 
@@ -472,6 +471,51 @@ class GetEventCount(Resource):
         for rowProxy in resultProxy:
             return rowProxy[0]
 
+class GetEventsByAccountNumber(Resource):
+    @marshal_with(Marshal_Fields.event_fields)
+    def get(self, account_number):
+        resultproxy = engine.execute(f"SELECT * FROM Events where AccountNumber = '{account_number}' ORDER BY EventID DESC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no events found'))
+        return a
+
+class GetBalanceEventsByUserID(Resource):
+    @marshal_with(Marshal_Fields.event_fields)
+    def get(self, user_id):
+        resultproxy = engine.execute(f"SELECT * FROM Events where UserID = {user_id} AND Amount != 0 ORDER BY EventID DESC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no events found'))
+        return a
+
+class GetEvents(Resource):
+    @marshal_with(Marshal_Fields.event_fields)
+    def get(self):
+        resultproxy = engine.execute(f"SELECT * FROM Events ORDER BY EventID DESC")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no events found'))
+        return a
+
 # ENDPOINTS -----------------------------------------------------------------
 
 # GET
@@ -483,12 +527,16 @@ api.add_resource(GetPasswords, "/users/<int:user_id>/get_passwords")
 api.add_resource(GetAccounts, "/users/<int:user_id>/accounts")
 api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
 api.add_resource(GetEventCount, "/events/count")
+api.add_resource(GetEvents, "/events")
+api.add_resource(GetEventsByAccountNumber, "/events/<int:account_number>")
+api.add_resource(GetBalanceEventsByUserID, "/events/<int:user_id>/balance")
+api.add_resource(GetAllAccounts, "/accounts")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
 api.add_resource(EditUser, "/users/<int:user_id>/edit")
 api.add_resource(ForgotPassword, "/forgot_password")
-api.add_resource(TestNewPassword, "/users/<int:user_id>/test_new_password")
+api.add_resource(UpdatePassword, "/users/<int:user_id>/update_password")
 api.add_resource(FailedLogin, "/users/<int:user_id>/failed_login")
 api.add_resource(CreateAccount, "/accounts/create/<string:username>")
 api.add_resource(EditAccount, "/accounts/<int:account_number>/edit")
