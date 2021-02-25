@@ -127,6 +127,23 @@ class GetAccountByAccountNumber(Resource):
             abort(Helper.CustomResponse(404, 'account not found with provided account number'))
         return d
 
+class GetAllAccounts(Resource):
+    @marshal_with(Marshal_Fields.account_fields)
+    def get(self):
+        resultproxy = engine.execute(f"SELECT * FROM Accounts")
+        d, a = {}, []
+        for rowproxy in resultproxy:
+            # rowproxy.items() returns an array like [(key0, value0), (key1, value1)]
+            for column, value in rowproxy.items():
+                # build up the dictionary
+                temp = str(value).split()
+                value = temp[0]
+                d = {**d, **{column: value}}
+            a.append(d)
+        if not a:
+            abort(Helper.CustomResponse(404, 'no accounts found'))
+        return a
+
 class CreateUser(Resource):
     def post(self):
         parser = reqparse.RequestParser()
@@ -497,6 +514,7 @@ api.add_resource(GetAccountByAccountNumber, "/accounts/<int:account_number>")
 api.add_resource(GetEventCount, "/events/count")
 api.add_resource(GetEvents, "/events")
 api.add_resource(GetEventsByAccountNumber, "/events/<int:account_number>")
+api.add_resource(GetAllAccounts, "/accounts")
 
 # POST
 api.add_resource(CreateUser, "/users/create-user")
